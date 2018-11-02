@@ -1,0 +1,14 @@
+[package]
+name = "libwinit"
+version = "0.1.0"
+authors = ["Aliaksei Syrel <alex.syrel@gmail.com>"]
+
+[dependencies]
+winit = "0.17"
+glutin = "0.18"
+gleam = "0.6.2"
+libc = "0.2"
+
+[lib]
+name = "Winit"
+crate-type = ["cdylib"]
