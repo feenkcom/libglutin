@@ -12,7 +12,7 @@ use winit::{DeviceId, WindowId, Event, WindowEvent};
 use winit::dpi::{LogicalPosition, LogicalSize};
 
 macro_rules! to_rust_reference {
-    ($name:ident) => (unsafe { &mut *$name });
+    ($name:ident) => { unsafe { &mut *$name } };
 }
 
 macro_rules! to_rust_structure {
@@ -40,15 +40,20 @@ macro_rules! for_create {
     ($expression:expr) => (unsafe { transmute(Box::new($expression)) });
 }
 
+#[repr(C)]
+pub struct WinitSizeU32 {
+    pub x: u32,
+    pub y: u32,
+}
+
 ///////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////// E V E N T S  L O O P /////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////
 
 #[no_mangle]
 pub fn winit_create_events_loop() -> *mut winit::EventsLoop {
-    //let _events_loop = for_create!(winit::EventsLoop::new());
-    return Box::into_raw(Box::new(winit::EventsLoop::new()));
-    //_events_loop
+    let _events_loop = for_create!(winit::EventsLoop::new());
+    _events_loop
 }
 
 #[no_mangle]
@@ -283,4 +288,20 @@ pub fn winit_gl_window_set_title(_ptr_window: *mut glutin::GlWindow, _ptr_title:
     let window: &glutin::GlWindow = to_rust_reference!(_ptr_window);
     let title = to_rust_string!(_ptr_title);
     window.set_title(title);
+}
+
+#[no_mangle]
+pub fn winit_gl_window_get_framebuffer_size(_ptr_window: *mut glutin::GlWindow, _ptr_size: *mut WinitSizeU32) {
+    let window: &glutin::GlWindow = to_rust_reference!(_ptr_window);
+    let size: &mut WinitSizeU32 = to_rust_reference!(_ptr_size);
+    let device_pixel_ratio = window.get_hidpi_factor() as f32;
+
+    let window_size = window
+        .get_inner_size()
+        .unwrap()
+        .to_physical(device_pixel_ratio as f64);
+
+
+    size.x = (window_size.width as u32);
+    size.y = (window_size.height as u32);
 }
