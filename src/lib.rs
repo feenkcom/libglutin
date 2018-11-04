@@ -5,6 +5,7 @@ extern crate winit;
 extern crate libc;
 extern crate gleam;
 
+use glutin::GlContext;
 use libc::{c_char};
 use std::ffi::CStr;
 use std::mem::transmute;
@@ -44,6 +45,12 @@ macro_rules! for_create {
 pub struct WinitSizeU32 {
     pub x: u32,
     pub y: u32,
+}
+
+#[repr(C)]
+pub struct WinitSizeF64 {
+    pub x: f64,
+    pub y: f64,
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////
@@ -241,7 +248,10 @@ pub fn winit_window_builder_with_resizable(_ptr_window_builder: *mut winit::Wind
 
 #[no_mangle]
 pub fn winit_create_context_builder() -> *mut glutin::ContextBuilder<'static> {
-    let _ptr_context_builder = for_create!(glutin::ContextBuilder::new());
+    let _ptr_context_builder = for_create!(glutin::ContextBuilder::new().with_gl(glutin::GlRequest::GlThenGles {
+            opengl_version: (3, 2),
+            opengles_version: (3, 0),
+        }));
     _ptr_context_builder
 }
 
@@ -284,6 +294,18 @@ pub fn winit_destroy_gl_window(_ptr: *mut glutin::GlWindow) {
 }
 
 #[no_mangle]
+pub fn winit_gl_window_make_current(_ptr_window: *mut glutin::GlWindow) {
+    let window: &glutin::GlWindow = to_rust_reference!(_ptr_window);
+    unsafe { window.make_current().ok() };
+}
+
+#[no_mangle]
+pub fn winit_gl_window_swap_buffers(_ptr_window: *mut glutin::GlWindow) {
+    let window: &glutin::GlWindow = to_rust_reference!(_ptr_window);
+    window.swap_buffers().ok();
+}
+
+#[no_mangle]
 pub fn winit_gl_window_set_title(_ptr_window: *mut glutin::GlWindow, _ptr_title: *const c_char) {
     let window: &glutin::GlWindow = to_rust_reference!(_ptr_window);
     let title = to_rust_string!(_ptr_title);
@@ -301,7 +323,19 @@ pub fn winit_gl_window_get_framebuffer_size(_ptr_window: *mut glutin::GlWindow, 
         .unwrap()
         .to_physical(device_pixel_ratio as f64);
 
-
     size.x = (window_size.width as u32);
     size.y = (window_size.height as u32);
+}
+
+#[no_mangle]
+pub fn winit_gl_window_get_inner_size(_ptr_window: *mut glutin::GlWindow, _ptr_size: *mut WinitSizeF64) {
+    let window: &glutin::GlWindow = to_rust_reference!(_ptr_window);
+    let size: &mut WinitSizeF64 = to_rust_reference!(_ptr_size);
+
+    let window_size = window
+        .get_inner_size()
+        .unwrap();
+
+    size.x = window_size.width;
+    size.y = window_size.height;
 }
