@@ -1,14 +1,13 @@
 [package]
-name = "libwinit"
+name = "libglutin"
 version = "0.1.0"
 authors = ["Aliaksei Syrel <alex.syrel@gmail.com>"]
 
 [dependencies]
-winit = "0.17"
-glutin = "0.18"
-gleam = "0.6.2"
+glutin = "0.20.0"
+gleam = "0.6.14"
 libc = "0.2"
 
 [lib]
-name = "Winit"
+name = "Glutin"
 crate-type = ["cdylib"]
