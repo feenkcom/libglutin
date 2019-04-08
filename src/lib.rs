@@ -452,6 +452,15 @@ fn glutin_event_loop_process_received_character (c_event: &mut GlutinEvent, char
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////// L I B R A R Y /////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////
+
+#[no_mangle]
+pub fn glutin_test() -> bool {
+    return true
+}
+
+///////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////// E V E N T S  L O O P /////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////
 
@@ -471,7 +480,7 @@ pub fn glutin_destroy_events_loop(_ptr: *mut glutin::EventsLoop) {
 pub fn glutin_events_loop_poll_events(_ptr_events_loop: *mut glutin::EventsLoop, _ptr_c_event: *mut GlutinEvent, callback: extern fn() -> bool) {
     assert_eq!(_ptr_events_loop.is_null(), false);
 
-    let mut events_loop= (unsafe { &mut *_ptr_events_loop });
+    let events_loop= (unsafe { &mut *_ptr_events_loop });
     let c_event = (unsafe { &mut *_ptr_c_event });
 
     events_loop.poll_events(|global_event: glutin::Event| {
@@ -482,7 +491,7 @@ pub fn glutin_events_loop_poll_events(_ptr_events_loop: *mut glutin::EventsLoop,
 
 #[no_mangle]
 pub fn glutin_events_loop_run_forever(_ptr_events_loop: *mut glutin::EventsLoop, _ptr_c_event: *mut GlutinEvent, callback: extern fn() -> bool) {
-    let mut events_loop= (unsafe { &mut *_ptr_events_loop });
+    let events_loop= (unsafe { &mut *_ptr_events_loop });
     let c_event = (unsafe { &mut *_ptr_c_event });
 
     events_loop.run_forever(|global_event: glutin::Event| {
@@ -708,7 +717,7 @@ pub struct GlutinGL {
     pub gl: *const gleam::gl::Gl,
 }
 
-fn error_callback(gl: &gleam::gl::Gl, message: &str, error: gl::GLenum) {
+fn error_callback(_gl: &gleam::gl::Gl, message: &str, error: gl::GLenum) {
     println!("[GL] error: {} code: {}", message, error);
 }
 
