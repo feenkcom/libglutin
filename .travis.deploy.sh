@@ -2,10 +2,7 @@
 if [[ $TRAVIS_COMMIT_MESSAGE == *"[skip deploy]"* ]]
 then
 	echo "Skipping deploy stage"
-else
-	pwd
-	ls -la
-	
+else	
 	mkdir -p ~/.ssh/
 	touch ~/.ssh/config
 	echo -e "Host *\n\tStrictHostKeyChecking no\n" >> ~/.ssh/config
@@ -13,12 +10,9 @@ else
 	eval "$(ssh-agent -s)"
 	chmod 600 deploy_key
 	ssh-add deploy_key
-	ssh -o StrictHostKeyChecking=no -i $FEENK_CLOUD uptime
 	ssh -i deploy_key $FEENK_CLOUD pwd
 
 	cd target/release
-	
-	ls -la
 
 	if [[ $TRAVIS_OS_NAME == "osx" ]]; then
 		scp libGlutin.dylib $FEENK_CLOUD:/var/www/html/Glutin/osx/development/x86_64
@@ -28,6 +22,6 @@ else
 	fi
 	
 	if [[ $TRAVIS_OS_NAME == "windows" ]]; then
-		scp libGlutin.dll $FEENK_CLOUD:/var/www/html/Glutin/windows/development/x86_64
+		scp Glutin.dll $FEENK_CLOUD:/var/www/html/Glutin/windows/development/x86_64/libGlutin.dll
 	fi
 fi
