@@ -11,7 +11,8 @@ else
 	ssh -i ./deploy_key $FEENK_CLOUD pwd
 
 	cd target/release
-	cd release
+	
+	ls -la
 
 	if [[ $TRAVIS_OS_NAME == "osx" ]]; then
 		scp libGlutin.dylib $FEENK_CLOUD:/var/www/html/Glutin/osx/development/x86_64
