@@ -5,6 +5,10 @@ then
 else	
 	ls -la
 	
+	cd target
+	
+	ls -la
+	
 	cd release
 
 	ls -la
