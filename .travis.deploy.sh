@@ -5,12 +5,8 @@ then
 else	
 	ls -la
 	
-	cd src
-
-	ls -la
-	
 	cd release
-	
+
 	ls -la
 	
 	if [[ $TRAVIS_OS_NAME == "osx" ]]; then
