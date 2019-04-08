@@ -7,6 +7,8 @@ os:
 
 rust:
   - stable
+
 cache: cargo
+
 script:
   - cargo build --verbose --release
