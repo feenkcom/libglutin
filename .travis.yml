@@ -11,4 +11,4 @@ rust:
 cache: cargo
 
 script:
-  - cargo build --verbose --release
+  - cargo build --release
