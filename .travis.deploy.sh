@@ -3,15 +3,17 @@ if [[ $TRAVIS_COMMIT_MESSAGE == *"[skip deploy]"* ]]
 then
 	echo "Skipping deploy stage"
 else
+	pwd
 	ls -la
 	
-	mkdir -p ~/.ssh
+	mkdir -p ~/.ssh/
 	touch ~/.ssh/config
 	echo -e "Host *\n\tStrictHostKeyChecking no\n" >> ~/.ssh/config
 	openssl aes-256-cbc -K $encrypted_b4e233c452d3_key -iv $encrypted_b4e233c452d3_iv -in deploy_key.enc -out deploy_key -d
 	eval "$(ssh-agent -s)"
 	chmod 600 deploy_key
 	ssh-add deploy_key
+	ssh -o StrictHostKeyChecking=no -i $FEENK_CLOUD uptime
 	ssh -i deploy_key $FEENK_CLOUD pwd
 
 	cd target/release
