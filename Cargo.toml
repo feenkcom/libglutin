@@ -11,3 +11,9 @@ libc = "0.2"
 [lib]
 name = "Glutin"
 crate-type = ["cdylib"]
+
+[profile.dev]
+opt-level = 0
+
+[profile.release]
+opt-level = 3
