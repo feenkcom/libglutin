@@ -1,0 +1,12 @@
+language: rust
+
+os:
+  - linux
+  - osx
+  - windows
+
+rust:
+  - stable
+cache: cargo
+script:
+  - cargo build --verbose --release
