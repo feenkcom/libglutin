@@ -4,6 +4,8 @@ then
 	echo "Skipping deploy stage"
 else
 	ls -la
+	
+	mkdir -p ~/.ssh
 	touch ~/.ssh/config
 	echo -e "Host *\n\tStrictHostKeyChecking no\n" >> ~/.ssh/config
 	openssl aes-256-cbc -K $encrypted_b4e233c452d3_key -iv $encrypted_b4e233c452d3_iv -in deploy_key.enc -out deploy_key -d
