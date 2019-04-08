@@ -5,7 +5,18 @@ then
 else
 	travis_fold start "Deploy"
 	
-	ls -la
+	cd 
+	
+	if [[ $TRAVIS_OS_NAME == "osx" ]]; then
+		scp libGlutin.so $FEENK_CLOUD:/var/www/html/Glutin/development/x86_64
+	fi
+	if [[ $TRAVIS_OS_NAME == "linux" ]]; then
+		
+	fi
+	
+	if [[ $TRAVIS_OS_NAME == "windows" ]]; then
+		
+	fi
 
 	travis_fold end "Deploy"
 fi
