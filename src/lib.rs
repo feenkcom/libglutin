@@ -60,6 +60,7 @@ pub struct GlutinSizeF64 {
 
 #[repr(C)]
 pub struct GlutinEvent {
+    window_id: u64,
     event_type: GlutinEventType,
     touch: GlutinTouchEvent,
     mouse_wheel: GlutinMouseWheelEvent,
@@ -233,6 +234,7 @@ fn glutin_events_loop_process_event(global_event: glutin::Event, c_event: &mut G
     match global_event {
         WindowEvent { event, window_id } => {
             result = true;
+           c_event.window_id = unsafe { transmute(window_id) };
             match event {
                 glutin::WindowEvent::Resized(LogicalSize { width, height }) => {
                     c_event.event_type = GlutinEventType::WindowEventResized;
@@ -731,6 +733,13 @@ pub fn glutin_windowed_context_resize_physical(_ptr_window: *mut glutin::Windowe
     let window: &glutin::WindowedContext = to_rust_reference!(_ptr_window);
 
     window.resize(PhysicalSize::new(_width, _height));
+}
+
+#[no_mangle]
+pub fn glutin_windowed_context_get_id(_ptr_window: *mut glutin::WindowedContext) -> u64 {
+    let window: &glutin::WindowedContext = to_rust_reference!(_ptr_window);
+
+    return unsafe { transmute (window.id()) };
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////
