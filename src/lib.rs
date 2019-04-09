@@ -564,6 +564,31 @@ pub fn glutin_window_builder_with_resizable(_ptr_window_builder: *mut glutin::Wi
     return builder_with!(window_builder.with_resizable(with_resizable));
 }
 
+#[no_mangle]
+pub fn glutin_window_builder_with_dimensions(_ptr_window_builder: *mut glutin::WindowBuilder, width: f64, height: f64) -> *mut glutin::WindowBuilder {
+    let window_builder: &glutin::WindowBuilder = to_rust_reference!(_ptr_window_builder);
+    return builder_with!(window_builder.with_dimensions(LogicalSize::new(width, height)));
+}
+
+#[no_mangle]
+pub fn glutin_window_builder_with_maximized(_ptr_window_builder: *mut glutin::WindowBuilder, with_maximized: bool) -> *mut glutin::WindowBuilder {
+    let window_builder: &glutin::WindowBuilder = to_rust_reference!(_ptr_window_builder);
+    return builder_with!(window_builder.with_maximized(with_maximized));
+}
+
+#[no_mangle]
+pub fn glutin_window_builder_with_visibility(_ptr_window_builder: *mut glutin::WindowBuilder, with_visibility: bool) -> *mut glutin::WindowBuilder {
+    let window_builder: &glutin::WindowBuilder = to_rust_reference!(_ptr_window_builder);
+    return builder_with!(window_builder.with_visibility(with_visibility));
+}
+
+
+#[no_mangle]
+pub fn glutin_window_builder_with_always_on_top(_ptr_window_builder: *mut glutin::WindowBuilder, with_always_on_top: bool) -> *mut glutin::WindowBuilder {
+    let window_builder: &glutin::WindowBuilder = to_rust_reference!(_ptr_window_builder);
+    return builder_with!(window_builder.with_always_on_top(with_always_on_top));
+}
+
 ///////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////// C O N T E X T    B U I L D E R ////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////

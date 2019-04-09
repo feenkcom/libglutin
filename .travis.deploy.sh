@@ -11,7 +11,6 @@ else
 	chmod 600 deploy_key
 	ssh-add deploy_key
 	ssh -i deploy_key $FEENK_CLOUD pwd
-	ssh-agent -k
 
 	cd target/release
 
@@ -25,4 +24,6 @@ else
 	if [[ $TRAVIS_OS_NAME == "windows" ]]; then
 		scp Glutin.dll $FEENK_CLOUD:/var/www/html/Glutin/windows/development/x86_64/libGlutin.dll
 	fi
+	
+	ssh-agent -k
 fi
