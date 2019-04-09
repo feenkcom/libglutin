@@ -7,6 +7,7 @@ extern crate gleam;
 use libc::{c_char};
 use std::ffi::CStr;
 use std::mem::transmute;
+use std::mem::transmute_copy;
 
 use glutin::dpi::*;
 use glutin::ContextTrait;
@@ -49,6 +50,12 @@ pub struct GlutinSizeU32 {
 }
 
 #[repr(C)]
+pub struct GlutinSizeU64 {
+    pub x: u64,
+    pub y: u64,
+}
+
+#[repr(C)]
 pub struct GlutinSizeF64 {
     pub x: f64,
     pub y: f64,
@@ -60,7 +67,7 @@ pub struct GlutinSizeF64 {
 
 #[repr(C)]
 pub struct GlutinEvent {
-    window_id: u64,
+    window_id: GlutinSizeU64,
     event_type: GlutinEventType,
     touch: GlutinTouchEvent,
     mouse_wheel: GlutinMouseWheelEvent,
@@ -227,6 +234,32 @@ pub enum GlutinEventInputElementState {
     Released
 }
 
+fn glutin_convert_window_id(window_id: glutin::WindowId) -> (u64, u64) {
+    let size = std::mem::size_of::<glutin::WindowId>();
+
+    let id_128: u128 = match size {
+        4 => { // u32
+            let id: u32 = unsafe { transmute_copy::<glutin::WindowId, u32>(&window_id) };
+            id as u128
+        },
+        8 => { // u64
+            let id: u64 = unsafe { transmute_copy::<glutin::WindowId, u64>(&window_id) };
+            id as u128
+        },
+        16 => { //u128
+            let id: u128 = unsafe { transmute_copy::<glutin::WindowId, u128>(&window_id) };
+            id
+        },
+        _ => {
+            eprintln!("Unknown size of window id ({:?})", window_id);
+            0 as u128 }
+    };
+
+    let lo = id_128 as u64 ;
+    let hi = (id_128 >> 64) as u64;
+    (lo, hi)
+}
+
 fn glutin_events_loop_process_event(global_event: glutin::Event, c_event: &mut GlutinEvent) -> bool {
     c_event.event_type = GlutinEventType::Unknown;
     let mut result = false;
@@ -234,7 +267,11 @@ fn glutin_events_loop_process_event(global_event: glutin::Event, c_event: &mut G
     match global_event {
         WindowEvent { event, window_id } => {
             result = true;
-           c_event.window_id = unsafe { transmute(window_id) };
+
+            let id: (u64, u64) = glutin_convert_window_id(window_id);
+            c_event.window_id.x = id.0;
+            c_event.window_id.y = id.1;
+
             match event {
                 glutin::WindowEvent::Resized(LogicalSize { width, height }) => {
                     c_event.event_type = GlutinEventType::WindowEventResized;
@@ -736,10 +773,13 @@ pub fn glutin_windowed_context_resize_physical(_ptr_window: *mut glutin::Windowe
 }
 
 #[no_mangle]
-pub fn glutin_windowed_context_get_id(_ptr_window: *mut glutin::WindowedContext) -> u64 {
+pub fn glutin_windowed_context_get_id(_ptr_window: *mut glutin::WindowedContext, _ptr_size: *mut GlutinSizeU64) {
     let window: &glutin::WindowedContext = to_rust_reference!(_ptr_window);
+    let size: &mut GlutinSizeU64 = to_rust_reference!(_ptr_size);
 
-    return unsafe { transmute (window.id()) };
+    let id: (u64, u64) = glutin_convert_window_id(window.id());
+    size.x = id.0;
+    size.y = id.1;
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////
