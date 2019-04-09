@@ -11,6 +11,7 @@ else
 	chmod 600 deploy_key
 	ssh-add deploy_key
 	ssh -i deploy_key $FEENK_CLOUD pwd
+	ssh-agent -k
 
 	cd target/release
 
