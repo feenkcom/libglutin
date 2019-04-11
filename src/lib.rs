@@ -43,18 +43,21 @@ macro_rules! for_create {
     ($expression:expr) => (unsafe { transmute(Box::new($expression)) });
 }
 
+#[derive(Debug, Copy, Clone)]
 #[repr(C)]
 pub struct GlutinSizeU32 {
     pub x: u32,
     pub y: u32,
 }
 
+#[derive(Debug, Copy, Clone)]
 #[repr(C)]
 pub struct GlutinSizeU64 {
     pub x: u64,
     pub y: u64,
 }
 
+#[derive(Debug, Copy, Clone)]
 #[repr(C)]
 pub struct GlutinSizeF64 {
     pub x: f64,
@@ -65,6 +68,7 @@ pub struct GlutinSizeF64 {
 ////////////////////////////////////// E V E N T S ////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////
 
+#[derive(Debug, Copy, Clone)]
 #[repr(C)]
 pub struct GlutinEvent {
     window_id: GlutinSizeU64,
@@ -79,6 +83,7 @@ pub struct GlutinEvent {
     window_moved: GlutinWindowMovedEvent,
 }
 
+#[derive(Debug, Copy, Clone)]
 #[repr(C)]
 pub struct GlutinTouchEvent {
     device_id: i64,
@@ -89,6 +94,7 @@ pub struct GlutinTouchEvent {
     id: u64
 }
 
+#[derive(Debug, Copy, Clone)]
 #[repr(C)]
 pub struct GlutinMouseWheelEvent {
     device_id: i64,
@@ -97,6 +103,7 @@ pub struct GlutinMouseWheelEvent {
     modifiers: GlutinEventModifiersState
 }
 
+#[derive(Debug, Copy, Clone)]
 #[repr(C)]
 pub struct GlutinMouseInputEvent {
     device_id: i64,
@@ -105,6 +112,7 @@ pub struct GlutinMouseInputEvent {
     modifiers: GlutinEventModifiersState
 }
 
+#[derive(Debug, Copy, Clone)]
 #[repr(C)]
 pub struct GlutinCursorMovedEvent {
     device_id: i64,
@@ -113,18 +121,21 @@ pub struct GlutinCursorMovedEvent {
     modifiers: GlutinEventModifiersState
 }
 
+#[derive(Debug, Copy, Clone)]
 #[repr(C)]
 pub struct GlutinWindowResizedEvent {
     width: f64,
     height: f64
 }
 
+#[derive(Debug, Copy, Clone)]
 #[repr(C)]
 pub struct GlutinWindowMovedEvent {
     x: f64,
     y: f64
 }
 
+#[derive(Debug, Copy, Clone)]
 #[repr(C)]
 pub struct GlutinEventKeyboardInput {
     device_id: i64,
@@ -135,6 +146,7 @@ pub struct GlutinEventKeyboardInput {
     modifiers: GlutinEventModifiersState
 }
 
+#[derive(Debug, Copy, Clone)]
 #[repr(C)]
 pub struct GlutinEventReceivedCharacter {
     length: usize,
@@ -144,10 +156,7 @@ pub struct GlutinEventReceivedCharacter {
     byte_4: u8
 }
 
-///////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////// S T R U C T S  ////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////
-
+#[derive(Debug, Copy, Clone)]
 #[repr(C)]
 pub struct GlutinMouseScrollDelta {
     delta_type: GlutinEventMouseScrollDeltaType,
@@ -170,13 +179,20 @@ pub struct GlutinEventModifiersState {
     logo: bool
 }
 
+#[derive(Debug, Copy, Clone)]
 #[repr(C)]
 pub struct GlutinEventMouseButton {
     button_type: GlutinEventMouseButtonType,
     button_code: u8
 }
 
-#[derive(Clone, Debug)]
+///////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////// S T R U C T S  ////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////
+
+
+
+#[derive(Debug, Copy, Clone)]
 #[repr(u32)]
 pub enum GlutinEventMouseButtonType {
     Left,
@@ -185,7 +201,7 @@ pub enum GlutinEventMouseButtonType {
     Other,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Debug, Copy, Clone)]
 #[repr(u32)]
 pub enum GlutinEventType {
     Unknown,
@@ -211,7 +227,7 @@ pub enum GlutinEventType {
     WindowEventHiDpiFactorChanged,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Debug, Copy, Clone)]
 #[repr(u32)]
 pub enum GlutinEventTouchPhase {
     Started,
@@ -220,14 +236,14 @@ pub enum GlutinEventTouchPhase {
     Cancelled
 }
 
-#[derive(Clone, Debug)]
+#[derive(Debug, Copy, Clone)]
 #[repr(u32)]
 pub enum GlutinEventMouseScrollDeltaType {
     LineDelta,
     PixelDelta,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Debug, Copy, Clone)]
 #[repr(u32)]
 pub enum GlutinEventInputElementState {
     Pressed,
@@ -499,6 +515,12 @@ pub fn glutin_test() -> bool {
     return true
 }
 
+#[no_mangle]
+pub fn glutin_println(_ptr_message: *const c_char) {
+    let message = to_rust_string!(_ptr_message);
+    println!("{}", message);
+}
+
 ///////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////// E V E N T S  L O O P /////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////
@@ -522,33 +544,60 @@ pub fn glutin_events_loop_poll_events(_ptr_events_loop: *mut glutin::EventsLoop,
     let events_loop= (unsafe { &mut *_ptr_events_loop });
     let c_event = (unsafe { &mut *_ptr_c_event });
 
+    let mut resize_event: GlutinWindowResizedEvent = GlutinWindowResizedEvent { width: 0.0, height: 0.0};
+    let mut resize_window_id: (u64, u64) = (0, 0);
+    let mut had_resize_event = false;
+
+    let mut events: Vec<GlutinEvent> = Vec::new();
+
     events_loop.poll_events(|global_event: glutin::Event| {
-        let processed = glutin_events_loop_process_event(global_event,c_event);
-        if processed { callback(); }
+        let processed = glutin_events_loop_process_event(global_event, c_event);
+        if processed { events.push(c_event.clone()) };
     });
+
+    for event in &events {
+        c_event.clone_from(event);
+        callback();
+    }
+}
+
+#[repr(C)]
+pub struct GlutinFetchedEvents {
+    data: *mut GlutinEvent,
+    len: usize,
 }
 
 #[no_mangle]
-pub fn glutin_events_loop_run_forever(_ptr_events_loop: *mut glutin::EventsLoop, _ptr_c_event: *mut GlutinEvent, callback: extern fn() -> bool) {
+pub fn glutin_events_loop_fetch_events(_ptr_events_loop: *mut glutin::EventsLoop, _ptr_c_event: *mut GlutinEvent) -> GlutinFetchedEvents {
+    assert_eq!(_ptr_events_loop.is_null(), false);
+
     let events_loop= (unsafe { &mut *_ptr_events_loop });
     let c_event = (unsafe { &mut *_ptr_c_event });
 
-    events_loop.run_forever(|global_event: glutin::Event| {
-        let processed = glutin_events_loop_process_event(global_event,c_event);
+    let mut events: Vec<GlutinEvent> = Vec::new();
 
-        if !processed {
-            return glutin::ControlFlow::Continue;
-        }
-
-        let result: bool = callback();
-        if result {
-            return glutin::ControlFlow::Continue;
-        }
-        else {
-            return glutin::ControlFlow::Break;
-        }
+    events_loop.poll_events(|global_event: glutin::Event| {
+        let processed = glutin_events_loop_process_event(global_event, c_event);
+        if processed { events.push(c_event.clone()) };
     });
+
+    let mut buf = events.into_boxed_slice();
+    let data = buf.as_mut_ptr();
+    let len = buf.len();
+    std::mem::forget(buf);
+    GlutinFetchedEvents { data, len }
 }
+
+#[no_mangle]
+fn glutin_events_loop_free_events(buf: GlutinFetchedEvents) {
+    let s = unsafe { std::slice::from_raw_parts_mut(buf.data, buf.len) };
+    let s = s.as_mut_ptr();
+    unsafe {
+        Box::from_raw(s);
+    }
+}
+
+
 
 ///////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////// W I N D O W    B U I L D E R /////////////////////////////
