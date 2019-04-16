@@ -692,16 +692,16 @@ pub fn glutin_window_builder_with_always_on_top(_ptr_window_builder: *mut glutin
 #[no_mangle]
 pub fn glutin_create_context_builder() -> *mut glutin::ContextBuilder<'static> {
     let _ptr_context_builder = for_create!(glutin::ContextBuilder::new()
-        .with_double_buffer(Some(false))
+        //.with_double_buffer(Some(false))
         .with_gl(glutin::GlRequest::Latest)
-		//.with_gl_robustness(glutin::Robustness::TryRobustNoResetNotification)
+		.with_gl_robustness(glutin::Robustness::TryRobustNoResetNotification)
 		.with_gl_profile(glutin::GlProfile::Core)
 		.with_multisampling(0)
 		.with_depth_buffer(24u8)
 		.with_stencil_buffer(8u8)
 		.with_pixel_format(24u8, 0u8)
 		.with_srgb(false)
-		.with_vsync(true));
+		.with_vsync(false));
     _ptr_context_builder
 }
 
