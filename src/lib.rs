@@ -64,6 +64,20 @@ pub struct GlutinSizeF64 {
     pub y: f64,
 }
 
+#[derive(Debug, Copy, Clone)]
+#[repr(C)]
+pub struct GlutinFetchedEvents {
+    data: *mut GlutinEvent,
+    length: usize,
+}
+
+#[derive(Debug, Copy, Clone)]
+#[repr(C)]
+pub struct GlutinCString {
+    data: *mut c_char,
+    length: usize,
+}
+
 ///////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////// E V E N T S ////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////
@@ -561,12 +575,6 @@ pub fn glutin_events_loop_poll_events(_ptr_events_loop: *mut glutin::EventsLoop,
     }
 }
 
-#[repr(C)]
-pub struct GlutinFetchedEvents {
-    data: *mut GlutinEvent,
-    len: usize,
-}
-
 #[no_mangle]
 pub fn glutin_events_loop_fetch_events(_ptr_events_loop: *mut glutin::EventsLoop, _ptr_c_event: *mut GlutinEvent) -> GlutinFetchedEvents {
     assert_eq!(_ptr_events_loop.is_null(), false);
@@ -585,12 +593,12 @@ pub fn glutin_events_loop_fetch_events(_ptr_events_loop: *mut glutin::EventsLoop
     let data = buf.as_mut_ptr();
     let len = buf.len();
     std::mem::forget(buf);
-    GlutinFetchedEvents { data, len }
+    GlutinFetchedEvents { data, length: len }
 }
 
 #[no_mangle]
 fn glutin_events_loop_free_events(buf: GlutinFetchedEvents) {
-    let s = unsafe { std::slice::from_raw_parts_mut(buf.data, buf.len) };
+    let s = unsafe { std::slice::from_raw_parts_mut(buf.data, buf.length) };
     let s = s.as_mut_ptr();
     unsafe {
         Box::from_raw(s);
@@ -683,7 +691,17 @@ pub fn glutin_window_builder_with_always_on_top(_ptr_window_builder: *mut glutin
 
 #[no_mangle]
 pub fn glutin_create_context_builder() -> *mut glutin::ContextBuilder<'static> {
-    let _ptr_context_builder = for_create!(glutin::ContextBuilder::new().with_double_buffer(Some(true)));
+    let _ptr_context_builder = for_create!(glutin::ContextBuilder::new()
+        .with_double_buffer(Some(false))
+        .with_gl(glutin::GlRequest::Latest)
+		//.with_gl_robustness(glutin::Robustness::TryRobustNoResetNotification)
+		.with_gl_profile(glutin::GlProfile::Core)
+		.with_multisampling(0)
+		.with_depth_buffer(24u8)
+		.with_stencil_buffer(8u8)
+		.with_pixel_format(24u8, 0u8)
+		.with_srgb(false)
+		.with_vsync(true));
     _ptr_context_builder
 }
 
@@ -876,6 +894,50 @@ pub fn glutin_gl_release(_ptr_gl: *mut GlutinGL) {
 }
 
 #[no_mangle]
+pub fn glutin_gl_get_string(_ptr_gl: *mut GlutinGL, which: gl::GLenum, _ptr_string: *mut GlutinCString) {
+    let hack: &GlutinGL = to_rust_reference!(_ptr_gl);
+    let c_string: &mut GlutinCString = to_rust_reference!(_ptr_string);
+    let gl: std::rc::Rc<gleam::gl::Gl> = unsafe { std::rc::Rc::from_raw(hack.gl) };
+
+    let mut version = gl.get_string(which);
+
+    std::rc::Rc::into_raw(gl);
+
+    let length = version.len();
+
+    let mut s: std::ffi::CString = std::ffi::CString::new(version).unwrap();
+    let p: *mut c_char = s.into_raw();
+
+    c_string.data = p;
+    c_string.length = length;
+}
+
+#[no_mangle]
+pub fn glutin_gl_free_cstring(_ptr_string: *mut GlutinCString) {
+    let c_string: &mut GlutinCString = to_rust_reference!(_ptr_string);
+    unsafe {
+        std::ffi::CString::from_raw(c_string.data);
+    }
+    c_string.length = 0;
+}
+
+#[no_mangle]
+pub fn glutin_gl_get_shader_version(_ptr_gl: *mut GlutinGL) -> u32 {
+    let hack: &GlutinGL = to_rust_reference!(_ptr_gl);
+    let gl: std::rc::Rc<gleam::gl::Gl> = unsafe { std::rc::Rc::from_raw(hack.gl) };
+
+    let mut version = gl.get_string(gl::SHADING_LANGUAGE_VERSION);
+
+    std::rc::Rc::into_raw(gl);
+
+    let split = version.split_whitespace();
+    let vec: Vec<&str> = split.collect();
+
+    let number = vec[0].parse::<f32>();
+    (number.unwrap() * 100.0) as u32
+}
+
+#[no_mangle]
 pub fn glutin_gl_gen_texture(_ptr_gl: *mut GlutinGL) -> gl::GLuint {
     let hack: &GlutinGL = to_rust_reference!(_ptr_gl);
     let gl: std::rc::Rc<gleam::gl::Gl> = unsafe { std::rc::Rc::from_raw(hack.gl) };
@@ -948,6 +1010,12 @@ pub fn glutin_gl_compile_shader(_ptr_gl: *mut GlutinGL, _shader: gl::GLuint) {
     let gl: std::rc::Rc<gleam::gl::Gl> = unsafe { std::rc::Rc::from_raw(hack.gl) };
 
     gl.compile_shader(_shader);
+
+    let log = gl.get_shader_info_log(_shader);
+
+    if !log.is_empty() {
+        println!("shader log: {}", log);
+    }
 
     std::rc::Rc::into_raw(gl);
 }
