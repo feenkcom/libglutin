@@ -4,8 +4,8 @@ version = "0.1.0"
 authors = ["Aliaksei Syrel <alex.syrel@gmail.com>"]
 
 [dependencies]
-glutin = "0.20.0"
-gleam = "0.6.14"
+glutin = "0.21.0"
+gleam = "0.6.16"
 libc = "0.2"
 
 [lib]
