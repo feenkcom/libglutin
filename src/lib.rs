@@ -582,7 +582,7 @@ pub fn glutin_create_events_loop() -> *mut glutin::EventsLoop {
 #[no_mangle]
 pub fn glutin_create_fetched_events() -> *mut GlutinFetchedEvents {
     let fetched_events = GlutinFetchedEvents { data: std::ptr::null_mut(), length: 0 };
-    let _fetched_events_ptr: *mut GlutinFetchedEvents = for_create!(fetched_events);
+    let _fetched_events_ptr: *mut GlutinFetchedEvents = Box::into_raw(Box::new(fetched_events));
     _fetched_events_ptr
 }
 
@@ -620,9 +620,9 @@ pub fn glutin_events_loop_fetch_events(_ptr_events_loop: *mut glutin::EventsLoop
 
 #[no_mangle]
 fn glutin_events_loop_free_events(_ptr_fetched_events: *mut GlutinFetchedEvents) {
-    let mut buf: Box<GlutinFetchedEvents> = for_delete!(_ptr_fetched_events);
+    let mut buf: Box<GlutinFetchedEvents> = unsafe { Box::from_raw(_ptr_fetched_events) };
 
-    if !buf.data.is_null() {
+    if !buf.data.is_null() && buf.length > 0 {
         let s = unsafe { std::slice::from_raw_parts_mut(buf.data, buf.length) };
         let s = s.as_mut_ptr();
         unsafe {
