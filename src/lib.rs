@@ -66,8 +66,8 @@ pub struct GlutinSizeF64 {
 #[derive(Debug, Copy, Clone)]
 #[repr(C)]
 pub struct GlutinFetchedEvents {
-    pub data: *mut GlutinEvent,
-    pub length: usize,
+    data: *mut GlutinEvent,
+    length: usize
 }
 
 #[derive(Debug, Copy, Clone)]
@@ -580,6 +580,13 @@ pub fn glutin_create_events_loop() -> *mut glutin::EventsLoop {
 }
 
 #[no_mangle]
+pub fn glutin_create_fetched_events() -> *mut GlutinFetchedEvents {
+    let fetched_events = GlutinFetchedEvents { data: std::ptr::null_mut(), length: 0 };
+    let _fetched_events_ptr: *mut GlutinFetchedEvents = for_create!(fetched_events);
+    _fetched_events_ptr
+}
+
+#[no_mangle]
 pub fn glutin_destroy_events_loop(_ptr: *mut glutin::EventsLoop) {
     let _events_loop: Box<glutin::EventsLoop> = for_delete!(_ptr);
     // Drop
@@ -595,38 +602,32 @@ pub fn glutin_events_loop_fetch_events(_ptr_events_loop: *mut glutin::EventsLoop
 
     let mut events: Vec<GlutinEvent> = Vec::new();
 
-    eprintln!("1");
     events_loop.poll_events(|global_event: glutin::Event| {
         let mut c_event: GlutinEvent = Default::default();
 
         let processed = glutin_events_loop_process_event(global_event, &mut c_event);
         if processed { events.push(c_event) };
     });
-    eprintln!("2");
 
     let mut buf = events.into_boxed_slice();
     let data = buf.as_mut_ptr();
     let len = buf.len();
     std::mem::forget(buf);
 
-    eprintln!("3");
-    eprintln!("{:?}", fetched_events);
-
     fetched_events.data = data;
     fetched_events.length = len;
-
-
-    eprintln!("4");
 }
 
 #[no_mangle]
 fn glutin_events_loop_free_events(_ptr_fetched_events: *mut GlutinFetchedEvents) {
-    let buf: &mut GlutinFetchedEvents = to_rust_reference!(_ptr_fetched_events);
+    let mut buf: Box<GlutinFetchedEvents> = for_delete!(_ptr_fetched_events);
 
-    let s = unsafe { std::slice::from_raw_parts_mut(buf.data, buf.length) };
-    let s = s.as_mut_ptr();
-    unsafe {
-        Box::from_raw(s);
+    if !buf.data.is_null() {
+        let s = unsafe { std::slice::from_raw_parts_mut(buf.data, buf.length) };
+        let s = s.as_mut_ptr();
+        unsafe {
+            Box::from_raw(s);
+        }
     }
 
     buf.data = std::ptr::null_mut();
@@ -857,6 +858,8 @@ pub fn glutin_create_windowed_context(
     new_context_builder.gl_attr.clone_from(&context_builder.gl_attr);
     new_context_builder.pf_reqs.clone_from(&context_builder.pf_reqs);
 
+    println!("{:?}", new_context_builder);
+
     match new_context_builder.build_windowed(new_window_builder, events_loop) {
         Ok(context) => {
             let _ptr_windowed_context = for_create!(context);
@@ -932,6 +935,8 @@ pub fn glutin_windowed_context_get_proc_address(_ptr_window: *mut glutin::Window
 #[no_mangle]
 pub fn glutin_windowed_context_get_framebuffer_size(_ptr_window: *mut glutin::WindowedContext<glutin::PossiblyCurrent>, _ptr_size: *mut GlutinSizeU32) {
     let window: &glutin::WindowedContext<glutin::PossiblyCurrent> = to_rust_reference!(_ptr_window);
+    assert_eq!(window.is_current(), true);
+
     let size: &mut GlutinSizeU32 = to_rust_reference!(_ptr_size);
     let device_pixel_ratio = window.window().get_hidpi_factor() as f32;
 
