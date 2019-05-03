@@ -12,6 +12,7 @@ use std::mem::transmute_copy;
 use glutin::dpi::*;
 use glutin::Event::*;
 use gleam::gl;
+use glutin::EventsLoop;
 
 macro_rules! to_rust_reference {
     ($name:ident) => { unsafe { &mut *$name } };
@@ -42,21 +43,21 @@ macro_rules! for_create {
     ($expression:expr) => (unsafe { transmute(Box::new($expression)) });
 }
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, Default)]
 #[repr(C)]
 pub struct GlutinSizeU32 {
     pub x: u32,
     pub y: u32,
 }
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, Default)]
 #[repr(C)]
 pub struct GlutinSizeU64 {
     pub x: u64,
     pub y: u64,
 }
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, Default)]
 #[repr(C)]
 pub struct GlutinSizeF64 {
     pub x: f64,
@@ -66,8 +67,8 @@ pub struct GlutinSizeF64 {
 #[derive(Debug, Copy, Clone)]
 #[repr(C)]
 pub struct GlutinFetchedEvents {
-    data: *mut GlutinEvent,
-    length: usize,
+    pub data: *mut GlutinEvent,
+    pub length: usize,
 }
 
 #[derive(Debug, Copy, Clone)]
@@ -81,7 +82,7 @@ pub struct GlutinCString {
 ////////////////////////////////////// E V E N T S ////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, Default)]
 #[repr(C)]
 pub struct GlutinEvent {
     window_id: GlutinSizeU64,
@@ -96,7 +97,7 @@ pub struct GlutinEvent {
     window_moved: GlutinWindowMovedEvent,
 }
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, Default)]
 #[repr(C)]
 pub struct GlutinTouchEvent {
     device_id: i64,
@@ -107,7 +108,7 @@ pub struct GlutinTouchEvent {
     id: u64
 }
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, Default)]
 #[repr(C)]
 pub struct GlutinMouseWheelEvent {
     device_id: i64,
@@ -116,7 +117,7 @@ pub struct GlutinMouseWheelEvent {
     modifiers: GlutinEventModifiersState
 }
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, Default)]
 #[repr(C)]
 pub struct GlutinMouseInputEvent {
     device_id: i64,
@@ -125,7 +126,7 @@ pub struct GlutinMouseInputEvent {
     modifiers: GlutinEventModifiersState
 }
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, Default)]
 #[repr(C)]
 pub struct GlutinCursorMovedEvent {
     device_id: i64,
@@ -134,14 +135,14 @@ pub struct GlutinCursorMovedEvent {
     modifiers: GlutinEventModifiersState
 }
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, Default)]
 #[repr(C)]
 pub struct GlutinWindowResizedEvent {
     width: f64,
     height: f64
 }
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, Default)]
 #[repr(C)]
 pub struct GlutinWindowMovedEvent {
     x: f64,
@@ -159,7 +160,17 @@ pub struct GlutinEventKeyboardInput {
     modifiers: GlutinEventModifiersState
 }
 
-#[derive(Debug, Copy, Clone)]
+impl Default for GlutinEventKeyboardInput {
+    fn default() -> Self { GlutinEventKeyboardInput {
+        device_id: Default::default(),
+        scan_code: Default::default(),
+        state: Default::default(),
+        has_virtual_keycode: Default::default(),
+        virtual_keycode: glutin::VirtualKeyCode::Unlabeled,
+        modifiers: Default::default() } }
+}
+
+#[derive(Debug, Copy, Clone, Default)]
 #[repr(C)]
 pub struct GlutinEventReceivedCharacter {
     length: usize,
@@ -169,7 +180,7 @@ pub struct GlutinEventReceivedCharacter {
     byte_4: u8
 }
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, Default)]
 #[repr(C)]
 pub struct GlutinMouseScrollDelta {
     delta_type: GlutinEventMouseScrollDeltaType,
@@ -192,7 +203,7 @@ pub struct GlutinEventModifiersState {
     logo: bool
 }
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, Default)]
 #[repr(C)]
 pub struct GlutinEventMouseButton {
     button_type: GlutinEventMouseButtonType,
@@ -208,13 +219,18 @@ pub struct GlutinEventMouseButton {
 #[derive(Debug, Copy, Clone)]
 #[repr(u32)]
 pub enum GlutinEventMouseButtonType {
+    Unknown,
     Left,
     Right,
     Middle,
     Other,
 }
 
-#[derive(Debug, Copy, Clone)]
+impl Default for GlutinEventMouseButtonType {
+    fn default() -> Self { GlutinEventMouseButtonType::Unknown }
+}
+
+#[derive(Debug, Copy, Clone, PartialEq)]
 #[repr(u32)]
 pub enum GlutinEventType {
     Unknown,
@@ -240,27 +256,46 @@ pub enum GlutinEventType {
     WindowEventHiDpiFactorChanged,
 }
 
+impl Default for GlutinEventType {
+    fn default() -> Self { GlutinEventType::Unknown }
+}
+
 #[derive(Debug, Copy, Clone)]
 #[repr(u32)]
 pub enum GlutinEventTouchPhase {
+    Unknown,
     Started,
     Moved,
     Ended,
     Cancelled
 }
 
+impl Default for GlutinEventTouchPhase {
+    fn default() -> Self { GlutinEventTouchPhase::Unknown }
+}
+
 #[derive(Debug, Copy, Clone)]
 #[repr(u32)]
 pub enum GlutinEventMouseScrollDeltaType {
+    Unknown,
     LineDelta,
     PixelDelta,
+}
+
+impl Default for GlutinEventMouseScrollDeltaType {
+    fn default() -> Self { GlutinEventMouseScrollDeltaType::Unknown }
 }
 
 #[derive(Debug, Copy, Clone)]
 #[repr(u32)]
 pub enum GlutinEventInputElementState {
+    Unknown,
     Pressed,
     Released
+}
+
+impl Default for GlutinEventInputElementState {
+    fn default() -> Self { GlutinEventInputElementState::Unknown }
 }
 
 fn glutin_convert_window_id(window_id: glutin::WindowId) -> (u64, u64) {
@@ -540,8 +575,9 @@ pub fn glutin_println(_ptr_message: *const c_char) {
 
 #[no_mangle]
 pub fn glutin_create_events_loop() -> *mut glutin::EventsLoop {
-    let _events_loop = for_create!(glutin::EventsLoop::new());
-    _events_loop
+    let mut events_loop = glutin::EventsLoop::new();
+    let _events_loop_ptr: *mut glutin::EventsLoop = for_create!(events_loop);
+    _events_loop_ptr
 }
 
 #[no_mangle]
@@ -554,7 +590,7 @@ pub fn glutin_destroy_events_loop(_ptr: *mut glutin::EventsLoop) {
 pub fn glutin_events_loop_poll_events(_ptr_events_loop: *mut glutin::EventsLoop, _ptr_c_event: *mut GlutinEvent, callback: extern fn() -> bool) {
     assert_eq!(_ptr_events_loop.is_null(), false);
 
-    let events_loop= (unsafe { &mut *_ptr_events_loop });
+    let events_loop = (unsafe { &mut *_ptr_events_loop });
     let c_event = (unsafe { &mut *_ptr_c_event });
 
     let mut resize_event: GlutinWindowResizedEvent = GlutinWindowResizedEvent { width: 0.0, height: 0.0};
@@ -575,36 +611,70 @@ pub fn glutin_events_loop_poll_events(_ptr_events_loop: *mut glutin::EventsLoop,
 }
 
 #[no_mangle]
-pub fn glutin_events_loop_fetch_events(_ptr_events_loop: *mut glutin::EventsLoop, _ptr_c_event: *mut GlutinEvent) -> GlutinFetchedEvents {
-    assert_eq!(_ptr_events_loop.is_null(), false);
-
-    let events_loop= (unsafe { &mut *_ptr_events_loop });
-    let c_event = (unsafe { &mut *_ptr_c_event });
+pub fn glutin_events_loop_fetch_events(_ptr_events_loop: *mut glutin::EventsLoop, _ptr_fetched_events: *mut GlutinFetchedEvents) {
+    let events_loop: &mut glutin::EventsLoop = to_rust_reference!(_ptr_events_loop);
+    let mut fetched_events: &mut GlutinFetchedEvents = to_rust_reference!(_ptr_fetched_events);
 
     let mut events: Vec<GlutinEvent> = Vec::new();
 
     events_loop.poll_events(|global_event: glutin::Event| {
-        let processed = glutin_events_loop_process_event(global_event, c_event);
-        if processed { events.push(c_event.clone()) };
+        let mut c_event: GlutinEvent = Default::default();
+
+        let processed = glutin_events_loop_process_event(global_event, &mut c_event);
+        if processed { events.push(c_event) };
     });
 
     let mut buf = events.into_boxed_slice();
     let data = buf.as_mut_ptr();
     let len = buf.len();
     std::mem::forget(buf);
-    GlutinFetchedEvents { data, length: len }
+
+    fetched_events.data = data;
+    fetched_events.length = len;
 }
 
 #[no_mangle]
-fn glutin_events_loop_free_events(buf: GlutinFetchedEvents) {
+fn glutin_events_loop_free_events(_ptr_fetched_events: *mut GlutinFetchedEvents) {
+    let mut buf: &mut GlutinFetchedEvents = to_rust_reference!(_ptr_fetched_events);
+
     let s = unsafe { std::slice::from_raw_parts_mut(buf.data, buf.length) };
     let s = s.as_mut_ptr();
     unsafe {
         Box::from_raw(s);
     }
+
+    buf.data = std::ptr::null_mut();
+    buf.length = 0;
 }
 
 
+///////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////// M O N I T O R    I D /////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////
+
+#[no_mangle]
+fn glutin_events_loop_get_primary_monitor(_ptr_events_loop: *mut glutin::EventsLoop) -> *mut glutin::MonitorId {
+    assert_eq!(_ptr_events_loop.is_null(), false);
+
+    let events_loop: &glutin::EventsLoop = to_rust_reference!(_ptr_events_loop);
+
+    let _ptr_monitor_id = for_create!(events_loop.get_primary_monitor());
+    _ptr_monitor_id
+}
+
+#[no_mangle]
+fn glutin_primary_monitor_free (_ptr_monitor_id: *mut glutin::MonitorId) {
+    let _monitor_id: Box<glutin::MonitorId> = for_delete!(_ptr_monitor_id);
+    // Drop
+}
+
+#[no_mangle]
+fn glutin_primary_monitor_get_hidpi_factor (_ptr_monitor_id: *mut glutin::MonitorId) -> f64 {
+    let monitor_id: &glutin::MonitorId = to_rust_reference!(_ptr_monitor_id);
+
+    println!("monitorId: {:?}", monitor_id);
+    monitor_id.get_hidpi_factor()
+}
 
 ///////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////// W I N D O W    B U I L D E R /////////////////////////////
@@ -690,17 +760,24 @@ pub fn glutin_window_builder_with_always_on_top(_ptr_window_builder: *mut glutin
 
 #[no_mangle]
 pub fn glutin_create_context_builder() -> *mut glutin::ContextBuilder<'static, glutin::NotCurrent> {
-    let _ptr_context_builder = for_create!(glutin::ContextBuilder::new()
+    let context_builder = glutin::ContextBuilder::new()
         //.with_double_buffer(Some(false))
-        .with_gl(glutin::GlRequest::Latest)
-		.with_gl_robustness(glutin::Robustness::TryRobustNoResetNotification)
-		.with_gl_profile(glutin::GlProfile::Core)
-		.with_multisampling(0)
-		.with_depth_buffer(24u8)
-		.with_stencil_buffer(8u8)
-		.with_pixel_format(24u8, 0u8)
-		.with_srgb(false)
-		.with_vsync(false));
+        .with_gl(glutin::GlRequest::GlThenGles {
+            /// The version to use for OpenGL.
+            opengl_version: (3, 1),
+            /// The version to use for OpenGL ES.
+            opengles_version: (3, 1),
+        })
+        .with_gl_robustness(glutin::Robustness::TryRobustNoResetNotification)
+        .with_gl_profile(glutin::GlProfile::Core)
+        .with_multisampling(0)
+        .with_depth_buffer(24u8)
+        .with_stencil_buffer(8u8)
+        .with_pixel_format(24u8, 0u8)
+        .with_srgb(false)
+        .with_vsync(false);
+
+    let _ptr_context_builder = for_create!(context_builder);
     _ptr_context_builder
 }
 
@@ -720,7 +797,7 @@ pub fn glutin_create_windowed_context(
         _ptr_window_builder: *mut glutin::WindowBuilder,
         _ptr_context_builder: *mut glutin::ContextBuilder<glutin::NotCurrent>) -> *mut glutin::WindowedContext<glutin::NotCurrent> {
 
-    let events_loop = to_rust_reference!(_ptr_events_loop);
+    let events_loop: &mut glutin::EventsLoop = to_rust_reference!(_ptr_events_loop);
     let window_builder = to_rust_reference!(_ptr_window_builder);
     let context_builder = to_rust_reference!(_ptr_context_builder);
 
@@ -731,8 +808,15 @@ pub fn glutin_create_windowed_context(
     new_context_builder.gl_attr.clone_from(&context_builder.gl_attr);
     new_context_builder.pf_reqs.clone_from(&context_builder.pf_reqs);
 
-    let _ptr_windowed_context =  for_create!(new_context_builder.build_windowed(new_window_builder, &events_loop).unwrap());
-    _ptr_windowed_context
+    match new_context_builder.build_windowed(new_window_builder, events_loop) {
+        Ok(context) => {
+            let _ptr_windowed_context = for_create!(context);
+            _ptr_windowed_context },
+        Err(err) => {
+            eprintln!("Error in create_windowed_context: {:?}", err);
+            std::ptr::null_mut()
+        }
+    }
 }
 
 #[no_mangle]
