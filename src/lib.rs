@@ -935,7 +935,6 @@ pub fn glutin_windowed_context_get_proc_address(_ptr_window: *mut glutin::Window
 #[no_mangle]
 pub fn glutin_windowed_context_get_framebuffer_size(_ptr_window: *mut glutin::WindowedContext<glutin::PossiblyCurrent>, _ptr_size: *mut GlutinSizeU32) {
     let window: &glutin::WindowedContext<glutin::PossiblyCurrent> = to_rust_reference!(_ptr_window);
-    assert_eq!(window.is_current(), true);
 
     let size: &mut GlutinSizeU32 = to_rust_reference!(_ptr_size);
     let device_pixel_ratio = window.window().get_hidpi_factor() as f32;
