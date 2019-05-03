@@ -1,4 +1,4 @@
-//#![feature(trace_macros)] trace_macros!(true);
+//#![feature(trace_macros)]
 
 extern crate glutin;
 extern crate libc;
@@ -12,7 +12,6 @@ use std::mem::transmute_copy;
 use glutin::dpi::*;
 use glutin::Event::*;
 use gleam::gl;
-use glutin::EventsLoop;
 
 macro_rules! to_rust_reference {
     ($name:ident) => { unsafe { &mut *$name } };
@@ -575,7 +574,7 @@ pub fn glutin_println(_ptr_message: *const c_char) {
 
 #[no_mangle]
 pub fn glutin_create_events_loop() -> *mut glutin::EventsLoop {
-    let mut events_loop = glutin::EventsLoop::new();
+    let events_loop = glutin::EventsLoop::new();
     let _events_loop_ptr: *mut glutin::EventsLoop = for_create!(events_loop);
     _events_loop_ptr
 }
@@ -587,55 +586,42 @@ pub fn glutin_destroy_events_loop(_ptr: *mut glutin::EventsLoop) {
 }
 
 #[no_mangle]
-pub fn glutin_events_loop_poll_events(_ptr_events_loop: *mut glutin::EventsLoop, _ptr_c_event: *mut GlutinEvent, callback: extern fn() -> bool) {
-    assert_eq!(_ptr_events_loop.is_null(), false);
-
-    let events_loop = (unsafe { &mut *_ptr_events_loop });
-    let c_event = (unsafe { &mut *_ptr_c_event });
-
-    let mut resize_event: GlutinWindowResizedEvent = GlutinWindowResizedEvent { width: 0.0, height: 0.0};
-    let mut resize_window_id: (u64, u64) = (0, 0);
-    let mut had_resize_event = false;
-
-    let mut events: Vec<GlutinEvent> = Vec::new();
-
-    events_loop.poll_events(|global_event: glutin::Event| {
-        let processed = glutin_events_loop_process_event(global_event, c_event);
-        if processed { events.push(c_event.clone()) };
-    });
-
-    for event in &events {
-        c_event.clone_from(event);
-        callback();
-    }
-}
-
-#[no_mangle]
 pub fn glutin_events_loop_fetch_events(_ptr_events_loop: *mut glutin::EventsLoop, _ptr_fetched_events: *mut GlutinFetchedEvents) {
+    assert_eq!(_ptr_events_loop.is_null(), false);
+    assert_eq!(_ptr_fetched_events.is_null(), false);
+
     let events_loop: &mut glutin::EventsLoop = to_rust_reference!(_ptr_events_loop);
-    let mut fetched_events: &mut GlutinFetchedEvents = to_rust_reference!(_ptr_fetched_events);
+    let fetched_events: &mut GlutinFetchedEvents = to_rust_reference!(_ptr_fetched_events);
 
     let mut events: Vec<GlutinEvent> = Vec::new();
 
+    eprintln!("1");
     events_loop.poll_events(|global_event: glutin::Event| {
         let mut c_event: GlutinEvent = Default::default();
 
         let processed = glutin_events_loop_process_event(global_event, &mut c_event);
         if processed { events.push(c_event) };
     });
+    eprintln!("2");
 
     let mut buf = events.into_boxed_slice();
     let data = buf.as_mut_ptr();
     let len = buf.len();
     std::mem::forget(buf);
 
+    eprintln!("3");
+    eprintln!("{:?}", fetched_events);
+
     fetched_events.data = data;
     fetched_events.length = len;
+
+
+    eprintln!("4");
 }
 
 #[no_mangle]
 fn glutin_events_loop_free_events(_ptr_fetched_events: *mut GlutinFetchedEvents) {
-    let mut buf: &mut GlutinFetchedEvents = to_rust_reference!(_ptr_fetched_events);
+    let buf: &mut GlutinFetchedEvents = to_rust_reference!(_ptr_fetched_events);
 
     let s = unsafe { std::slice::from_raw_parts_mut(buf.data, buf.length) };
     let s = s.as_mut_ptr();
@@ -671,8 +657,6 @@ fn glutin_primary_monitor_free (_ptr_monitor_id: *mut glutin::MonitorId) {
 #[no_mangle]
 fn glutin_primary_monitor_get_hidpi_factor (_ptr_monitor_id: *mut glutin::MonitorId) -> f64 {
     let monitor_id: &glutin::MonitorId = to_rust_reference!(_ptr_monitor_id);
-
-    println!("monitorId: {:?}", monitor_id);
     monitor_id.get_hidpi_factor()
 }
 
@@ -680,12 +664,12 @@ fn glutin_primary_monitor_get_hidpi_factor (_ptr_monitor_id: *mut glutin::Monito
 //////////////////////////// W I N D O W    B U I L D E R /////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////
 
-macro_rules! builder_with {
-    ($name:ident.$function:ident$variable:expr) => {
+macro_rules! window_builder_with {
+   ($name:ident.$function:ident($($variable:expr),+)) => {
         {
             let mut window_builder_tmp = glutin::WindowBuilder::new();
             window_builder_tmp.clone_from($name);
-            window_builder_tmp = window_builder_tmp.$function($variable);
+            window_builder_tmp = window_builder_tmp.$function($($variable),+);
             let mut _ptr_window_builder = for_create!(window_builder_tmp);
             _ptr_window_builder
         }
@@ -708,77 +692,142 @@ pub fn glutin_destroy_window_builder(_ptr: *mut glutin::WindowBuilder) {
 pub fn glutin_window_builder_with_title(_ptr_window_builder: *mut glutin::WindowBuilder, _ptr_title: *const c_char) -> *mut glutin::WindowBuilder {
     let window_builder: &mut glutin::WindowBuilder = to_rust_reference!(_ptr_window_builder);
     let title = to_rust_string!(_ptr_title);
-    return builder_with!(window_builder.with_title(title));
+    return window_builder_with!(window_builder.with_title(title));
 }
 
 #[no_mangle]
 pub fn glutin_window_builder_with_decorations(_ptr_window_builder: *mut glutin::WindowBuilder, with_decorations: bool) -> *mut glutin::WindowBuilder {
     let window_builder: &glutin::WindowBuilder = to_rust_reference!(_ptr_window_builder);
-    return builder_with!(window_builder.with_decorations(with_decorations));
+    return window_builder_with!(window_builder.with_decorations(with_decorations));
 }
 
 #[no_mangle]
 pub fn glutin_window_builder_with_transparency(_ptr_window_builder: *mut glutin::WindowBuilder, with_transparency: bool) -> *mut glutin::WindowBuilder {
     let window_builder: &glutin::WindowBuilder = to_rust_reference!(_ptr_window_builder);
-    return builder_with!(window_builder.with_transparency(with_transparency));
+    return window_builder_with!(window_builder.with_transparency(with_transparency));
 }
 
 #[no_mangle]
 pub fn glutin_window_builder_with_resizable(_ptr_window_builder: *mut glutin::WindowBuilder, with_resizable: bool) -> *mut glutin::WindowBuilder {
     let window_builder: &glutin::WindowBuilder = to_rust_reference!(_ptr_window_builder);
-    return builder_with!(window_builder.with_resizable(with_resizable));
+    return window_builder_with!(window_builder.with_resizable(with_resizable));
 }
 
 #[no_mangle]
 pub fn glutin_window_builder_with_dimensions(_ptr_window_builder: *mut glutin::WindowBuilder, width: f64, height: f64) -> *mut glutin::WindowBuilder {
     let window_builder: &glutin::WindowBuilder = to_rust_reference!(_ptr_window_builder);
-    return builder_with!(window_builder.with_dimensions(LogicalSize::new(width, height)));
+    return window_builder_with!(window_builder.with_dimensions(LogicalSize::new(width, height)));
 }
 
 #[no_mangle]
 pub fn glutin_window_builder_with_maximized(_ptr_window_builder: *mut glutin::WindowBuilder, with_maximized: bool) -> *mut glutin::WindowBuilder {
     let window_builder: &glutin::WindowBuilder = to_rust_reference!(_ptr_window_builder);
-    return builder_with!(window_builder.with_maximized(with_maximized));
+    return window_builder_with!(window_builder.with_maximized(with_maximized));
 }
 
 #[no_mangle]
 pub fn glutin_window_builder_with_visibility(_ptr_window_builder: *mut glutin::WindowBuilder, with_visibility: bool) -> *mut glutin::WindowBuilder {
     let window_builder: &glutin::WindowBuilder = to_rust_reference!(_ptr_window_builder);
-    return builder_with!(window_builder.with_visibility(with_visibility));
+    return window_builder_with!(window_builder.with_visibility(with_visibility));
 }
 
 
 #[no_mangle]
 pub fn glutin_window_builder_with_always_on_top(_ptr_window_builder: *mut glutin::WindowBuilder, with_always_on_top: bool) -> *mut glutin::WindowBuilder {
     let window_builder: &glutin::WindowBuilder = to_rust_reference!(_ptr_window_builder);
-    return builder_with!(window_builder.with_always_on_top(with_always_on_top));
+    return window_builder_with!(window_builder.with_always_on_top(with_always_on_top));
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////// C O N T E X T    B U I L D E R ////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////
 
+macro_rules! context_builder_with {
+    ($name:ident.$function:ident($($variable:expr),+)) => {
+        {
+            let mut context_builder_tmp = glutin::ContextBuilder::new();
+            context_builder_tmp.gl_attr.clone_from(&$name.gl_attr);
+            context_builder_tmp.pf_reqs.clone_from(&$name.pf_reqs);
+            context_builder_tmp = context_builder_tmp.$function($($variable),+);
+            let mut _ptr_context_builder = for_create!(context_builder_tmp);
+            _ptr_context_builder
+        }
+    };
+}
+
 #[no_mangle]
 pub fn glutin_create_context_builder() -> *mut glutin::ContextBuilder<'static, glutin::NotCurrent> {
     let context_builder = glutin::ContextBuilder::new()
-        //.with_double_buffer(Some(false))
-        .with_gl(glutin::GlRequest::GlThenGles {
-            /// The version to use for OpenGL.
-            opengl_version: (3, 1),
-            /// The version to use for OpenGL ES.
-            opengles_version: (3, 1),
-        })
         .with_gl_robustness(glutin::Robustness::TryRobustNoResetNotification)
-        .with_gl_profile(glutin::GlProfile::Core)
-        .with_multisampling(0)
-        .with_depth_buffer(24u8)
-        .with_stencil_buffer(8u8)
-        .with_pixel_format(24u8, 0u8)
-        .with_srgb(false)
-        .with_vsync(false);
+        .with_gl_profile(glutin::GlProfile::Core);
 
     let _ptr_context_builder = for_create!(context_builder);
     _ptr_context_builder
+}
+
+#[no_mangle]
+pub fn glutin_context_builder_with_gl_then_gles(_ptr_context_builder: *mut glutin::ContextBuilder<glutin::NotCurrent>, gl_major: u8, gl_minor: u8, gles_major: u8, gles_minor: u8) -> *mut glutin::ContextBuilder<'static, glutin::NotCurrent> {
+    let context_builder: &glutin::ContextBuilder<glutin::NotCurrent> = to_rust_reference!(_ptr_context_builder);
+    return context_builder_with!(context_builder.with_gl(glutin::GlRequest::GlThenGles {
+        /// The version to use for OpenGL.
+        opengl_version: (gl_major, gl_minor),
+        /// The version to use for OpenGL ES.
+        opengles_version: (gles_major, gles_minor),
+    }));
+}
+
+#[no_mangle]
+pub fn glutin_context_builder_with_gl_latest(_ptr_context_builder: *mut glutin::ContextBuilder<glutin::NotCurrent>) -> *mut glutin::ContextBuilder<'static, glutin::NotCurrent> {
+    let context_builder: &glutin::ContextBuilder<glutin::NotCurrent> = to_rust_reference!(_ptr_context_builder);
+    return context_builder_with!(context_builder.with_gl(glutin::GlRequest::Latest));
+}
+
+#[no_mangle]
+pub fn glutin_context_builder_with_gl_profile_core(_ptr_context_builder: *mut glutin::ContextBuilder<glutin::NotCurrent>) -> *mut glutin::ContextBuilder<'static, glutin::NotCurrent> {
+    let context_builder: &glutin::ContextBuilder<glutin::NotCurrent> = to_rust_reference!(_ptr_context_builder);
+    return context_builder_with!(context_builder.with_gl_profile(glutin::GlProfile::Core));
+}
+
+#[no_mangle]
+pub fn glutin_context_builder_with_multisampling(_ptr_context_builder: *mut glutin::ContextBuilder<glutin::NotCurrent>, samples: u16) -> *mut glutin::ContextBuilder<'static, glutin::NotCurrent> {
+    let context_builder: &glutin::ContextBuilder<glutin::NotCurrent> = to_rust_reference!(_ptr_context_builder);
+    return context_builder_with!(context_builder.with_multisampling(samples));
+}
+
+#[no_mangle]
+pub fn glutin_context_builder_with_depth_buffer(_ptr_context_builder: *mut glutin::ContextBuilder<glutin::NotCurrent>, bits: u8) -> *mut glutin::ContextBuilder<'static, glutin::NotCurrent> {
+    let context_builder: &glutin::ContextBuilder<glutin::NotCurrent> = to_rust_reference!(_ptr_context_builder);
+    return context_builder_with!(context_builder.with_depth_buffer(bits));
+}
+
+#[no_mangle]
+pub fn glutin_context_builder_with_stencil_buffer(_ptr_context_builder: *mut glutin::ContextBuilder<glutin::NotCurrent>, bits: u8) -> *mut glutin::ContextBuilder<'static, glutin::NotCurrent> {
+    let context_builder: &glutin::ContextBuilder<glutin::NotCurrent> = to_rust_reference!(_ptr_context_builder);
+    return context_builder_with!(context_builder.with_stencil_buffer(bits));
+}
+
+#[no_mangle]
+pub fn glutin_context_builder_with_pixel_format(_ptr_context_builder: *mut glutin::ContextBuilder<glutin::NotCurrent>, color_bits: u8, alpha_bits: u8) -> *mut glutin::ContextBuilder<'static, glutin::NotCurrent> {
+    let context_builder: &glutin::ContextBuilder<glutin::NotCurrent> = to_rust_reference!(_ptr_context_builder);
+    return context_builder_with!(context_builder.with_pixel_format(color_bits, alpha_bits));
+}
+
+#[no_mangle]
+pub fn glutin_context_builder_with_vsync(_ptr_context_builder: *mut glutin::ContextBuilder<glutin::NotCurrent>, vsync: bool) -> *mut glutin::ContextBuilder<'static, glutin::NotCurrent> {
+    let context_builder: &glutin::ContextBuilder<glutin::NotCurrent> = to_rust_reference!(_ptr_context_builder);
+    return context_builder_with!(context_builder.with_vsync(vsync));
+}
+
+#[no_mangle]
+pub fn glutin_context_builder_with_srgb(_ptr_context_builder: *mut glutin::ContextBuilder<glutin::NotCurrent>, srgb_enabled: bool) -> *mut glutin::ContextBuilder<'static, glutin::NotCurrent> {
+    let context_builder: &glutin::ContextBuilder<glutin::NotCurrent> = to_rust_reference!(_ptr_context_builder);
+    return context_builder_with!(context_builder.with_srgb(srgb_enabled));
+}
+
+#[no_mangle]
+pub fn glutin_context_builder_with_double_buffer(_ptr_context_builder: *mut glutin::ContextBuilder<glutin::NotCurrent>, double_buffer_enabled: bool) -> *mut glutin::ContextBuilder<'static, glutin::NotCurrent> {
+    let context_builder: &glutin::ContextBuilder<glutin::NotCurrent> = to_rust_reference!(_ptr_context_builder);
+    return context_builder_with!(context_builder.with_double_buffer(Some(double_buffer_enabled)));
 }
 
 #[no_mangle]
@@ -832,7 +881,9 @@ pub fn glutin_windowed_context_make_current(_ptr_window: *mut glutin::WindowedCo
     let context: glutin::WindowedContext<glutin::PossiblyCurrent>;
 
     match unsafe { window.make_current() } {
-        Ok(windowed_context) => { context = windowed_context },
+        Ok(windowed_context) => {
+            println!("{:?}", windowed_context.get_pixel_format());
+            context = windowed_context },
         Err((windowed_context, err)) => {
             context = windowed_context;
             match err {
@@ -1015,13 +1066,13 @@ pub fn glutin_gl_get_string(_ptr_gl: *mut GlutinGL, which: gl::GLenum, _ptr_stri
     let c_string: &mut GlutinCString = to_rust_reference!(_ptr_string);
     let gl: std::rc::Rc<gleam::gl::Gl> = unsafe { std::rc::Rc::from_raw(hack.gl) };
 
-    let mut version = gl.get_string(which);
+    let version = gl.get_string(which);
 
     std::rc::Rc::into_raw(gl);
 
     let length = version.len();
 
-    let mut s: std::ffi::CString = std::ffi::CString::new(version).unwrap();
+    let s: std::ffi::CString = std::ffi::CString::new(version).unwrap();
     let p: *mut c_char = s.into_raw();
 
     c_string.data = p;
@@ -1042,7 +1093,7 @@ pub fn glutin_gl_get_shader_version(_ptr_gl: *mut GlutinGL) -> u32 {
     let hack: &GlutinGL = to_rust_reference!(_ptr_gl);
     let gl: std::rc::Rc<gleam::gl::Gl> = unsafe { std::rc::Rc::from_raw(hack.gl) };
 
-    let mut version = gl.get_string(gl::SHADING_LANGUAGE_VERSION);
+    let version = gl.get_string(gl::SHADING_LANGUAGE_VERSION);
 
     std::rc::Rc::into_raw(gl);
 
