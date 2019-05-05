@@ -568,6 +568,12 @@ pub fn glutin_println(_ptr_message: *const c_char) {
     println!("{}", message);
 }
 
+#[no_mangle]
+pub fn glutin_print(_ptr_message: *const c_char) {
+    let message = to_rust_string!(_ptr_message);
+    print!("{}", message);
+}
+
 ///////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////// E V E N T S  L O O P /////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////
@@ -602,12 +608,18 @@ pub fn glutin_events_loop_fetch_events(_ptr_events_loop: *mut glutin::EventsLoop
 
     let mut events: Vec<GlutinEvent> = Vec::new();
 
-    events_loop.poll_events(|global_event: glutin::Event| {
-        let mut c_event: GlutinEvent = Default::default();
+    // turned out, poll_events doesn't poll *ALL* events, therefore we should loop until there are no more events to poll
+    let mut had_event = true;
+    while had_event {
+        had_event = false;
+        events_loop.poll_events(|global_event: glutin::Event| {
+            had_event = true;
+            let mut c_event: GlutinEvent = Default::default();
 
-        let processed = glutin_events_loop_process_event(global_event, &mut c_event);
-        if processed { events.push(c_event) };
-    });
+            let processed = glutin_events_loop_process_event(global_event, &mut c_event);
+            if processed { events.push(c_event) };
+        });
+    }
 
     let mut buf = events.into_boxed_slice();
     let data = buf.as_mut_ptr();
@@ -884,9 +896,7 @@ pub fn glutin_windowed_context_make_current(_ptr_window: *mut glutin::WindowedCo
     let context: glutin::WindowedContext<glutin::PossiblyCurrent>;
 
     match unsafe { window.make_current() } {
-        Ok(windowed_context) => {
-            println!("{:?}", windowed_context.get_pixel_format());
-            context = windowed_context },
+        Ok(windowed_context) => { context = windowed_context },
         Err((windowed_context, err)) => {
             context = windowed_context;
             match err {
