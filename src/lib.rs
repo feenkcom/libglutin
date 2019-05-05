@@ -1,4 +1,4 @@
-//#![feature(trace_macros)]
+#![allow(non_snake_case)]
 
 extern crate glutin;
 extern crate libc;
@@ -15,10 +15,6 @@ use gleam::gl;
 
 macro_rules! to_rust_reference {
     ($name:ident) => { unsafe { &mut *$name } };
-}
-
-macro_rules! to_rust_structure {
-    ($name:ident) => ($name);
 }
 
 macro_rules! to_c_string {
@@ -594,7 +590,7 @@ pub fn glutin_create_fetched_events() -> *mut GlutinFetchedEvents {
 
 #[no_mangle]
 pub fn glutin_destroy_events_loop(_ptr: *mut glutin::EventsLoop) {
-    let _events_loop: Box<glutin::EventsLoop> = for_delete!(_ptr);
+    let _: Box<glutin::EventsLoop> = for_delete!(_ptr);
     // Drop
 }
 
@@ -916,7 +912,7 @@ pub fn glutin_windowed_context_swap_buffers(_ptr_window: *mut glutin::WindowedCo
     let window: &glutin::WindowedContext<glutin::PossiblyCurrent> = to_rust_reference!(_ptr_window);
 
     match window.swap_buffers() {
-        Ok(windowed_context) => {},
+        Ok(_) => {},
         Err(err) => {
             match err {
                 glutin::ContextError::OsError(string) => { eprintln!("OS Error in swap_buffers: {}", string) },
@@ -954,8 +950,8 @@ pub fn glutin_windowed_context_get_framebuffer_size(_ptr_window: *mut glutin::Wi
         .unwrap()
         .to_physical(device_pixel_ratio as f64);
 
-    size.x = (window_size.width as u32);
-    size.y = (window_size.height as u32);
+    size.x = window_size.width as u32;
+    size.y = window_size.height as u32;
 }
 
 #[no_mangle]
@@ -1047,7 +1043,7 @@ fn error_callback(_gl: &gleam::gl::Gl, message: &str, error: gl::GLenum) {
 pub fn glutin_windowed_context_load_gl(_ptr_window: *mut glutin::WindowedContext<glutin::PossiblyCurrent>) -> *mut GlutinGL {
     let window: &glutin::WindowedContext<glutin::PossiblyCurrent> = to_rust_reference!(_ptr_window);
 
-    let mut gl: std::rc::Rc<(dyn gleam::gl::Gl + 'static)> = (match window.get_api() {
+    let mut gl: std::rc::Rc<(dyn gleam::gl::Gl + 'static)> = match window.get_api() {
         glutin::Api::OpenGl => unsafe {
             gl::GlFns::load_with(|symbol| window.get_proc_address(symbol) as *const _)
         },
@@ -1055,7 +1051,7 @@ pub fn glutin_windowed_context_load_gl(_ptr_window: *mut glutin::WindowedContext
             gl::GlesFns::load_with(|symbol| window.get_proc_address(symbol) as *const _)
         },
         glutin::Api::WebGl => unimplemented!(),
-    });
+    };
 
     gl = gl::ErrorReactingGl::wrap(gl, error_callback);
 
@@ -1070,7 +1066,7 @@ pub fn glutin_windowed_context_load_gl(_ptr_window: *mut glutin::WindowedContext
 #[no_mangle]
 pub fn glutin_gl_release(_ptr_gl: *mut GlutinGL) {
     let hack: &GlutinGL = for_delete!(_ptr_gl);
-    let gl: std::rc::Rc<dyn gleam::gl::Gl> = unsafe { std::rc::Rc::from_raw(hack.gl) };
+    let _: std::rc::Rc<dyn gleam::gl::Gl> = unsafe { std::rc::Rc::from_raw(hack.gl) };
     //drop
 }
 
