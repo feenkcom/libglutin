@@ -611,7 +611,6 @@ pub fn glutin_events_loop_fetch_events(_ptr_events_loop: *mut glutin::EventsLoop
         events_loop.poll_events(|global_event: glutin::Event| {
             had_event = true;
             let mut c_event: GlutinEvent = Default::default();
-
             let processed = glutin_events_loop_process_event(global_event, &mut c_event);
             if processed { events.push(c_event) };
         });
@@ -887,8 +886,9 @@ pub fn glutin_destroy_windowed_context(_ptr: *mut glutin::WindowedContext<glutin
 
 #[no_mangle]
 pub fn glutin_windowed_context_make_current(_ptr_window: *mut glutin::WindowedContext<glutin::PossiblyCurrent>) -> *mut glutin::WindowedContext<glutin::PossiblyCurrent> {
-    let window: Box<glutin::WindowedContext<glutin::PossiblyCurrent>> = unsafe { Box::from_raw(_ptr_window) };
+    if _ptr_window.is_null() { return _ptr_window }
 
+    let window: Box<glutin::WindowedContext<glutin::PossiblyCurrent>> = unsafe { Box::from_raw(_ptr_window) };
     let context: glutin::WindowedContext<glutin::PossiblyCurrent>;
 
     match unsafe { window.make_current() } {
@@ -909,6 +909,8 @@ pub fn glutin_windowed_context_make_current(_ptr_window: *mut glutin::WindowedCo
 
 #[no_mangle]
 pub fn glutin_windowed_context_swap_buffers(_ptr_window: *mut glutin::WindowedContext<glutin::PossiblyCurrent>) {
+    if _ptr_window.is_null() { return }
+
     let window: &glutin::WindowedContext<glutin::PossiblyCurrent> = to_rust_reference!(_ptr_window);
 
     match window.swap_buffers() {
@@ -925,6 +927,8 @@ pub fn glutin_windowed_context_swap_buffers(_ptr_window: *mut glutin::WindowedCo
 
 #[no_mangle]
 pub fn glutin_windowed_context_is_current(_ptr_window: *mut glutin::WindowedContext<glutin::PossiblyCurrent>) -> bool {
+    if _ptr_window.is_null() { return false };
+
     let window: &glutin::WindowedContext<glutin::PossiblyCurrent> = to_rust_reference!(_ptr_window);
 
     return window.is_current();
