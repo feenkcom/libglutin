@@ -1075,6 +1075,26 @@ pub fn glutin_gl_release(_ptr_gl: *mut GlutinGL) {
 }
 
 #[no_mangle]
+pub fn glutin_gl_clear_color(_ptr_gl: *mut GlutinGL, r: f32, g: f32, b: f32, a: f32) {
+    let hack: &GlutinGL = to_rust_reference!(_ptr_gl);
+    let gl: std::rc::Rc<gleam::gl::Gl> = unsafe { std::rc::Rc::from_raw(hack.gl) };
+
+    gl.clear_color(r, g, b, a);
+
+    std::rc::Rc::into_raw(gl);
+}
+
+#[no_mangle]
+pub fn glutin_gl_clear(_ptr_gl: *mut GlutinGL, buffer_mask: gl::GLbitfield) {
+    let hack: &GlutinGL = to_rust_reference!(_ptr_gl);
+    let gl: std::rc::Rc<gleam::gl::Gl> = unsafe { std::rc::Rc::from_raw(hack.gl) };
+
+    gl.clear(buffer_mask);
+
+    std::rc::Rc::into_raw(gl);
+}
+
+#[no_mangle]
 pub fn glutin_gl_get_string(_ptr_gl: *mut GlutinGL, which: gl::GLenum, _ptr_string: *mut GlutinCString) {
     let hack: &GlutinGL = to_rust_reference!(_ptr_gl);
     let c_string: &mut GlutinCString = to_rust_reference!(_ptr_string);
