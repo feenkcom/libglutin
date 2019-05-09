@@ -5,8 +5,8 @@ authors = ["Aliaksei Syrel <alex.syrel@gmail.com>"]
 
 [dependencies]
 glutin = "0.21.0"
-gleam = "0.6.16"
-libc = "0.2"
+gleam = "0.6.17"
+libc = "0.2.54"
 
 [lib]
 name = "Glutin"
