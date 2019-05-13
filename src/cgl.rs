@@ -218,6 +218,24 @@ pub fn glutin_gl_tex_image_2d(_ptr_gl: *mut GlutinGL, level: gl::GLint, internal
 }
 
 #[no_mangle]
+pub fn glutin_gl_tex_sub_image_2d(_ptr_gl: *mut GlutinGL, level: gl::GLint, xoffset: gl::GLint, yoffset: gl::GLint, width: gl::GLsizei, height: gl::GLsizei, format: gl::GLenum, ty: gl::GLenum, array: *const u8, length: u32) {
+    GlutinGL::with_raw(_ptr_gl,|gl| {
+        let data: &[u8] = unsafe { std::slice::from_raw_parts(array, length as usize) };
+
+        gl.tex_sub_image_2d(
+            gl::TEXTURE_2D,
+            level,
+            xoffset,
+            yoffset,
+            width,
+            height,
+            format,
+            ty,
+            data);
+    });
+}
+
+#[no_mangle]
 pub fn glutin_gl_gen_vertex_array(_ptr_gl: *mut GlutinGL) -> gl::GLuint {
     GlutinGL::with_raw(_ptr_gl,|gl| gl.gen_vertex_arrays(1)[0])
 }
