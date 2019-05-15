@@ -4,9 +4,10 @@ version = "0.1.0"
 authors = ["Aliaksei Syrel <alex.syrel@gmail.com>"]
 
 [dependencies]
-glutin = "0.21.0"
+glutin = { git = "https://github.com/rust-windowing/glutin" }
 gleam = "0.6.17"
 libc = "0.2.54"
+winit = { git = "https://github.com/rust-windowing/winit.git", branch = "eventloop-2.0"}
 
 [lib]
 name = "Glutin"

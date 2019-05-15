@@ -3,15 +3,23 @@
 extern crate glutin;
 extern crate libc;
 extern crate gleam;
+extern crate winit;
 
 use libc::{c_char};
 use std::ffi::CStr;
 use std::mem::transmute;
 use std::mem::transmute_copy;
 
+use glutin::*;
 use glutin::dpi::*;
-use glutin::Event::*;
+use glutin::event::*;
+use glutin::window::*;
+use glutin::event_loop::*;
+use glutin::monitor::*;
+
 use gleam::gl;
+
+use winit::platform::desktop::EventLoopExtDesktop;
 
 #[macro_use]
 mod cmacro;
@@ -99,7 +107,7 @@ pub struct GlutinEventKeyboardInput {
     scan_code: u32,
     state: GlutinEventInputElementState,
     has_virtual_keycode: bool,
-    virtual_keycode: glutin::VirtualKeyCode,
+    virtual_keycode: VirtualKeyCode,
     modifiers: GlutinEventModifiersState
 }
 
@@ -109,7 +117,7 @@ impl Default for GlutinEventKeyboardInput {
         scan_code: Default::default(),
         state: Default::default(),
         has_virtual_keycode: Default::default(),
-        virtual_keycode: glutin::VirtualKeyCode::Unlabeled,
+        virtual_keycode: VirtualKeyCode::Unlabeled,
         modifiers: Default::default() } }
 }
 
@@ -241,20 +249,20 @@ impl Default for GlutinEventInputElementState {
     fn default() -> Self { GlutinEventInputElementState::Unknown }
 }
 
-fn glutin_convert_window_id(window_id: glutin::WindowId) -> (u64, u64) {
-    let size = std::mem::size_of::<glutin::WindowId>();
+fn glutin_convert_window_id(window_id: WindowId) -> (u64, u64) {
+    let size = std::mem::size_of::<WindowId>();
 
     let id_128: u128 = match size {
         4 => { // u32
-            let id: u32 = unsafe { transmute_copy::<glutin::WindowId, u32>(&window_id) };
+            let id: u32 = unsafe { transmute_copy::<WindowId, u32>(&window_id) };
             id as u128
         },
         8 => { // u64
-            let id: u64 = unsafe { transmute_copy::<glutin::WindowId, u64>(&window_id) };
+            let id: u64 = unsafe { transmute_copy::<WindowId, u64>(&window_id) };
             id as u128
         },
         16 => { //u128
-            let id: u128 = unsafe { transmute_copy::<glutin::WindowId, u128>(&window_id) };
+            let id: u128 = unsafe { transmute_copy::<WindowId, u128>(&window_id) };
             id
         },
         _ => {
@@ -267,12 +275,12 @@ fn glutin_convert_window_id(window_id: glutin::WindowId) -> (u64, u64) {
     (lo, hi)
 }
 
-fn glutin_events_loop_process_event(global_event: glutin::Event, c_event: &mut GlutinEvent) -> bool {
+fn glutin_events_loop_process_event(global_event: glutin::event::Event<()>, c_event: &mut GlutinEvent) -> bool {
     c_event.event_type = GlutinEventType::Unknown;
     let mut result = false;
 
     match global_event {
-        WindowEvent { event, window_id } => {
+        glutin::event::Event::WindowEvent { event, window_id } => {
             result = true;
 
             let id: (u64, u64) = glutin_convert_window_id(window_id);
@@ -280,41 +288,41 @@ fn glutin_events_loop_process_event(global_event: glutin::Event, c_event: &mut G
             c_event.window_id.y = id.1;
 
             match event {
-                glutin::WindowEvent::Resized(LogicalSize { width, height }) => {
+                WindowEvent::Resized(LogicalSize { width, height }) => {
                     c_event.event_type = GlutinEventType::WindowEventResized;
                     c_event.window_resized.width = width;
                     c_event.window_resized.height = height;
                 },
-                glutin::WindowEvent::Moved(LogicalPosition { x, y }) => {
+                WindowEvent::Moved(LogicalPosition { x, y }) => {
                     c_event.event_type = GlutinEventType::WindowEventMoved;
                     c_event.window_moved.x = x;
                     c_event.window_moved.y = y;
                 },
-                glutin::WindowEvent::CloseRequested => {
+                WindowEvent::CloseRequested => {
                     c_event.event_type = GlutinEventType::WindowEventCloseRequested;
                 },
-                glutin::WindowEvent::Destroyed => {
+                WindowEvent::Destroyed => {
                     c_event.event_type = GlutinEventType::WindowEventDestroyed;
                 },
-                glutin::WindowEvent::Refresh => {
+                WindowEvent::RedrawRequested => {
                     c_event.event_type = GlutinEventType::WindowEventRefresh;
                 },
-                glutin::WindowEvent::Touch(glutin::Touch {device_id, phase, location, id}) => {
+                WindowEvent::Touch(Touch {device_id, phase, location, id}) => {
                     glutin_event_loop_process_touch(c_event, device_id, phase, location, id);
                 },
-                glutin::WindowEvent::MouseInput{ device_id, state, button, modifiers } => {
+                WindowEvent::MouseInput{ device_id, state, button, modifiers } => {
                     glutin_event_loop_process_mouse_input(c_event, device_id, state, button, modifiers);
                 },
-                glutin::WindowEvent::CursorMoved { device_id, position, modifiers } => {
+                WindowEvent::CursorMoved { device_id, position, modifiers } => {
                     glutin_event_loop_process_cursor_moved(c_event, device_id, position, modifiers);
                 },
-                glutin::WindowEvent::MouseWheel { device_id, delta, phase, modifiers } => {
+                WindowEvent::MouseWheel { device_id, delta, phase, modifiers } => {
                     glutin_event_loop_process_mouse_wheel(c_event, device_id, delta, phase, modifiers);
                 },
-                glutin::WindowEvent::KeyboardInput { device_id, input } => {
+                WindowEvent::KeyboardInput { device_id, input } => {
                     glutin_event_loop_process_keyboard_input (c_event, device_id, input);
                 }
-                glutin::WindowEvent::ReceivedCharacter (character) => {
+                WindowEvent::ReceivedCharacter (character) => {
                     glutin_event_loop_process_received_character (c_event, character);
                 }
                 _ => ({result = false})
@@ -325,17 +333,17 @@ fn glutin_events_loop_process_event(global_event: glutin::Event, c_event: &mut G
     result
 }
 
-fn glutin_event_loop_process_mouse_wheel(c_event: &mut GlutinEvent, device_id: glutin::DeviceId, delta: glutin::MouseScrollDelta, phase: glutin::TouchPhase, modifiers: glutin::ModifiersState) {
+fn glutin_event_loop_process_mouse_wheel(c_event: &mut GlutinEvent, device_id: DeviceId, delta: MouseScrollDelta, phase: TouchPhase, modifiers: ModifiersState) {
     c_event.event_type = GlutinEventType::WindowEventMouseWheel;
     c_event.mouse_wheel.device_id = unsafe { transmute(&device_id)};
 
     match delta {
-        glutin::MouseScrollDelta::LineDelta(x,y) => {
+        MouseScrollDelta::LineDelta(x,y) => {
             c_event.mouse_wheel.delta.delta_type = GlutinEventMouseScrollDeltaType::LineDelta;
             c_event.mouse_wheel.delta.x = x as f64;
             c_event.mouse_wheel.delta.y = y as f64;
         },
-        glutin::MouseScrollDelta::PixelDelta(LogicalPosition { x, y }) => {
+        MouseScrollDelta::PixelDelta(LogicalPosition { x, y }) => {
             c_event.mouse_wheel.delta.delta_type = GlutinEventMouseScrollDeltaType::PixelDelta;
             c_event.mouse_wheel.delta.x = x;
             c_event.mouse_wheel.delta.y = y;
@@ -348,22 +356,22 @@ fn glutin_event_loop_process_mouse_wheel(c_event: &mut GlutinEvent, device_id: g
     c_event.mouse_wheel.modifiers.shift = modifiers.shift;
 
     match phase {
-        glutin::TouchPhase::Started => {
+        TouchPhase::Started => {
             c_event.mouse_wheel.phase = GlutinEventTouchPhase::Started;
         },
-        glutin::TouchPhase::Moved => {
+        TouchPhase::Moved => {
             c_event.mouse_wheel.phase = GlutinEventTouchPhase::Moved;
         },
-        glutin::TouchPhase::Ended => {
+        TouchPhase::Ended => {
             c_event.mouse_wheel.phase = GlutinEventTouchPhase::Ended;
         },
-        glutin::TouchPhase::Cancelled => {
+        TouchPhase::Cancelled => {
             c_event.mouse_wheel.phase = GlutinEventTouchPhase::Cancelled;
         },
     }
 }
 
-fn glutin_event_loop_process_touch(c_event: &mut GlutinEvent, device_id: glutin::DeviceId, phase: glutin::TouchPhase, location: LogicalPosition, id: u64) {
+fn glutin_event_loop_process_touch(c_event: &mut GlutinEvent, device_id: DeviceId, phase: TouchPhase, location: LogicalPosition, id: u64) {
     c_event.event_type = GlutinEventType::WindowEventTouch;
     c_event.touch.device_id = unsafe { transmute(&device_id)};
     c_event.touch.x = location.x;
@@ -371,52 +379,52 @@ fn glutin_event_loop_process_touch(c_event: &mut GlutinEvent, device_id: glutin:
     c_event.touch.id = id;
 
     match phase {
-        glutin::TouchPhase::Started => {
+        TouchPhase::Started => {
             c_event.touch.phase = GlutinEventTouchPhase::Started;
         },
-        glutin::TouchPhase::Moved => {
+        TouchPhase::Moved => {
             c_event.touch.phase = GlutinEventTouchPhase::Moved;
 
         },
-        glutin::TouchPhase::Ended => {
+        TouchPhase::Ended => {
             c_event.touch.phase = GlutinEventTouchPhase::Ended;
 
         },
-        glutin::TouchPhase::Cancelled => {
+        TouchPhase::Cancelled => {
             c_event.touch.phase = GlutinEventTouchPhase::Cancelled;
 
         },
     }
 }
 
-fn glutin_event_loop_process_mouse_input(c_event: &mut GlutinEvent, device_id: glutin::DeviceId, state: glutin::ElementState, button: glutin::MouseButton, modifiers: glutin::ModifiersState) {
+fn glutin_event_loop_process_mouse_input(c_event: &mut GlutinEvent, device_id: DeviceId, state: ElementState, button: MouseButton, modifiers: ModifiersState) {
     c_event.event_type = GlutinEventType::WindowEventMouseInput;
     c_event.mouse_input.device_id = unsafe { transmute(&device_id)};
 
     match state {
-        glutin::ElementState::Released => {
+        ElementState::Released => {
             c_event.mouse_input.state = GlutinEventInputElementState::Released;
         },
-        glutin::ElementState::Pressed => {
+        ElementState::Pressed => {
             c_event.mouse_input.state = GlutinEventInputElementState::Pressed;
 
         }
     }
 
     match button {
-        glutin::MouseButton::Left => {
+        MouseButton::Left => {
             c_event.mouse_input.button.button_type = GlutinEventMouseButtonType::Left;
             c_event.mouse_input.button.button_code = 0;
         },
-        glutin::MouseButton::Right => {
+        MouseButton::Right => {
             c_event.mouse_input.button.button_type = GlutinEventMouseButtonType::Right;
             c_event.mouse_input.button.button_code = 1;
         },
-        glutin::MouseButton::Middle => {
+        MouseButton::Middle => {
             c_event.mouse_input.button.button_type = GlutinEventMouseButtonType::Middle;
             c_event.mouse_input.button.button_code = 2;
         },
-        glutin::MouseButton::Other(code) => {
+        MouseButton::Other(code) => {
             c_event.mouse_input.button.button_type = GlutinEventMouseButtonType::Other;
             c_event.mouse_input.button.button_code = code;
         },
@@ -428,7 +436,7 @@ fn glutin_event_loop_process_mouse_input(c_event: &mut GlutinEvent, device_id: g
     c_event.mouse_input.modifiers.shift = modifiers.shift;
 }
 
-fn glutin_event_loop_process_cursor_moved(c_event: &mut GlutinEvent, device_id: glutin::DeviceId, position: LogicalPosition, modifiers: glutin::ModifiersState) {
+fn glutin_event_loop_process_cursor_moved(c_event: &mut GlutinEvent, device_id: DeviceId, position: LogicalPosition, modifiers: ModifiersState) {
     c_event.event_type = GlutinEventType::WindowEventCursorMoved;
     c_event.cursor_moved.device_id = unsafe { transmute(&device_id)};
 
@@ -441,17 +449,17 @@ fn glutin_event_loop_process_cursor_moved(c_event: &mut GlutinEvent, device_id: 
     c_event.cursor_moved.modifiers.shift = modifiers.shift;
 }
 
-fn glutin_event_loop_process_keyboard_input(c_event: &mut GlutinEvent, device_id: glutin::DeviceId, input: glutin::KeyboardInput) {
+fn glutin_event_loop_process_keyboard_input(c_event: &mut GlutinEvent, device_id: DeviceId, input: KeyboardInput) {
     c_event.event_type = GlutinEventType::WindowEventKeyboardInput;
     c_event.keyboard_input.device_id = unsafe { transmute(&device_id)};
 
     c_event.keyboard_input.scan_code = input.scancode;
 
     match input.state {
-        glutin::ElementState::Released => {
+        ElementState::Released => {
             c_event.keyboard_input.state = GlutinEventInputElementState::Released;
         },
-        glutin::ElementState::Pressed => {
+        ElementState::Pressed => {
             c_event.keyboard_input.state = GlutinEventInputElementState::Pressed;
         }
     }
@@ -523,10 +531,14 @@ pub fn glutin_print(_ptr_message: *const c_char) {
 ///////////////////////////////////////////////////////////////////////////////////////
 
 #[no_mangle]
-pub fn glutin_create_events_loop() -> *mut glutin::EventsLoop {
-    let events_loop = glutin::EventsLoop::new();
-    let _events_loop_ptr: *mut glutin::EventsLoop = for_create!(events_loop);
-    _events_loop_ptr
+pub fn glutin_create_events_loop() -> *mut EventLoop<()> {
+    CBox::into_raw(EventLoop::new())
+}
+
+
+#[no_mangle]
+pub fn glutin_destroy_events_loop(_ptr: *mut EventLoop<()>) {
+    CBox::from_raw(_ptr);
 }
 
 #[no_mangle]
@@ -536,41 +548,32 @@ pub fn glutin_create_fetched_events() -> *mut GlutinFetchedEvents {
     _fetched_events_ptr
 }
 
-#[no_mangle]
-pub fn glutin_destroy_events_loop(_ptr: *mut glutin::EventsLoop) {
-    let _: Box<glutin::EventsLoop> = for_delete!(_ptr);
-    // Drop
-}
 
 #[no_mangle]
-pub fn glutin_events_loop_fetch_events(_ptr_events_loop: *mut glutin::EventsLoop, _ptr_fetched_events: *mut GlutinFetchedEvents) {
-    assert_eq!(_ptr_events_loop.is_null(), false);
-    assert_eq!(_ptr_fetched_events.is_null(), false);
+pub fn glutin_events_loop_fetch_events(_ptr_event_loop: *mut EventLoop<()>, _ptr_fetched_events: *mut GlutinFetchedEvents) {
+    CBox::with_two_raw(_ptr_event_loop, _ptr_fetched_events, | event_loop, fetched_events| {
+        let mut events: Vec<GlutinEvent> = Vec::new();
 
-    let events_loop: &mut glutin::EventsLoop = to_rust_reference!(_ptr_events_loop);
-    let fetched_events: &mut GlutinFetchedEvents = to_rust_reference!(_ptr_fetched_events);
+        // turned out, poll_events doesn't poll *ALL* events, therefore we should loop until there are no more events to poll
+        let mut had_event = true;
+        while had_event {
+            had_event = false;
+            event_loop.run_return(|global_event: Event<()>, event_loop_window_target: &EventLoopWindowTarget<()>, control_flow: &mut ControlFlow| {
+                had_event = true;
+                let mut c_event: GlutinEvent = Default::default();
+                let processed = glutin_events_loop_process_event(global_event, &mut c_event);
+                if processed { events.push(c_event) };
+            });
+        }
 
-    let mut events: Vec<GlutinEvent> = Vec::new();
+        let mut buf = events.into_boxed_slice();
+        let data = buf.as_mut_ptr();
+        let len = buf.len();
+        std::mem::forget(buf);
 
-    // turned out, poll_events doesn't poll *ALL* events, therefore we should loop until there are no more events to poll
-    let mut had_event = true;
-    while had_event {
-        had_event = false;
-        events_loop.poll_events(|global_event: glutin::Event| {
-            had_event = true;
-            let mut c_event: GlutinEvent = Default::default();
-            let processed = glutin_events_loop_process_event(global_event, &mut c_event);
-            if processed { events.push(c_event) };
-        });
-    }
-
-    let mut buf = events.into_boxed_slice();
-    let data = buf.as_mut_ptr();
-    let len = buf.len();
-    std::mem::forget(buf);
-
-    fetched_events.data = data;
-    fetched_events.length = len;
+        fetched_events.data = data;
+        fetched_events.length = len;
+    });
 }
 
 #[no_mangle]
@@ -595,25 +598,20 @@ fn glutin_events_loop_free_events(_ptr_fetched_events: *mut GlutinFetchedEvents)
 ///////////////////////////////////////////////////////////////////////////////////////
 
 #[no_mangle]
-fn glutin_events_loop_get_primary_monitor(_ptr_events_loop: *mut glutin::EventsLoop) -> *mut glutin::MonitorId {
-    assert_eq!(_ptr_events_loop.is_null(), false);
-
-    let events_loop: &glutin::EventsLoop = to_rust_reference!(_ptr_events_loop);
-
-    let _ptr_monitor_id = for_create!(events_loop.get_primary_monitor());
-    _ptr_monitor_id
+fn glutin_events_loop_get_primary_monitor(_ptr_event_loop: *mut EventLoop<()>) -> *mut MonitorHandle {
+    CBox::with_raw(_ptr_event_loop, |event_loop| {
+        CBox::into_raw(event_loop.get_primary_monitor())
+    })
 }
 
 #[no_mangle]
-fn glutin_primary_monitor_free (_ptr_monitor_id: *mut glutin::MonitorId) {
-    let _monitor_id: Box<glutin::MonitorId> = for_delete!(_ptr_monitor_id);
-    // Drop
+fn glutin_primary_monitor_free (_ptr_monitor_id: *mut MonitorHandle) {
+    CBox::from_raw(_ptr_monitor_id);
 }
 
 #[no_mangle]
-fn glutin_primary_monitor_get_hidpi_factor (_ptr_monitor_id: *mut glutin::MonitorId) -> f64 {
-    let monitor_id: &glutin::MonitorId = to_rust_reference!(_ptr_monitor_id);
-    monitor_id.get_hidpi_factor()
+fn glutin_primary_monitor_get_hidpi_factor (_ptr_monitor_id: *mut MonitorHandle) -> f64 {
+    CBox::with_raw(_ptr_monitor_id, |monitor_id| monitor_id.get_hidpi_factor() )
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////
@@ -623,7 +621,7 @@ fn glutin_primary_monitor_get_hidpi_factor (_ptr_monitor_id: *mut glutin::Monito
 macro_rules! window_builder_with {
    ($name:ident.$function:ident($($variable:expr),+)) => {
         {
-            let mut window_builder_tmp = glutin::WindowBuilder::new();
+            let mut window_builder_tmp = WindowBuilder::new();
             window_builder_tmp.clone_from($name);
             window_builder_tmp = window_builder_tmp.$function($($variable),+);
             let mut _ptr_window_builder = for_create!(window_builder_tmp);
@@ -633,64 +631,64 @@ macro_rules! window_builder_with {
 }
 
 #[no_mangle]
-pub fn glutin_create_window_builder() -> *mut glutin::WindowBuilder {
-    let _ptr_window_builder = for_create!(glutin::WindowBuilder::new());
+pub fn glutin_create_window_builder() -> *mut WindowBuilder {
+    let _ptr_window_builder = for_create!(WindowBuilder::new());
     _ptr_window_builder
 }
 
 #[no_mangle]
-pub fn glutin_destroy_window_builder(_ptr: *mut glutin::WindowBuilder) {
-    let _window_builder: Box<glutin::WindowBuilder> = for_delete!(_ptr);
+pub fn glutin_destroy_window_builder(_ptr: *mut WindowBuilder) {
+    let _window_builder: Box<WindowBuilder> = for_delete!(_ptr);
     // Drop
 }
 
 #[no_mangle]
-pub fn glutin_window_builder_with_title(_ptr_window_builder: *mut glutin::WindowBuilder, _ptr_title: *const c_char) -> *mut glutin::WindowBuilder {
-    let window_builder: &mut glutin::WindowBuilder = to_rust_reference!(_ptr_window_builder);
+pub fn glutin_window_builder_with_title(_ptr_window_builder: *mut WindowBuilder, _ptr_title: *const c_char) -> *mut WindowBuilder {
+    let window_builder: &mut WindowBuilder = to_rust_reference!(_ptr_window_builder);
     let title = to_rust_string!(_ptr_title);
     return window_builder_with!(window_builder.with_title(title));
 }
 
 #[no_mangle]
-pub fn glutin_window_builder_with_decorations(_ptr_window_builder: *mut glutin::WindowBuilder, with_decorations: bool) -> *mut glutin::WindowBuilder {
-    let window_builder: &glutin::WindowBuilder = to_rust_reference!(_ptr_window_builder);
+pub fn glutin_window_builder_with_decorations(_ptr_window_builder: *mut WindowBuilder, with_decorations: bool) -> *mut WindowBuilder {
+    let window_builder: &WindowBuilder = to_rust_reference!(_ptr_window_builder);
     return window_builder_with!(window_builder.with_decorations(with_decorations));
 }
 
 #[no_mangle]
-pub fn glutin_window_builder_with_transparency(_ptr_window_builder: *mut glutin::WindowBuilder, with_transparency: bool) -> *mut glutin::WindowBuilder {
-    let window_builder: &glutin::WindowBuilder = to_rust_reference!(_ptr_window_builder);
+pub fn glutin_window_builder_with_transparency(_ptr_window_builder: *mut WindowBuilder, with_transparency: bool) -> *mut WindowBuilder {
+    let window_builder: &WindowBuilder = to_rust_reference!(_ptr_window_builder);
     return window_builder_with!(window_builder.with_transparency(with_transparency));
 }
 
 #[no_mangle]
-pub fn glutin_window_builder_with_resizable(_ptr_window_builder: *mut glutin::WindowBuilder, with_resizable: bool) -> *mut glutin::WindowBuilder {
-    let window_builder: &glutin::WindowBuilder = to_rust_reference!(_ptr_window_builder);
+pub fn glutin_window_builder_with_resizable(_ptr_window_builder: *mut WindowBuilder, with_resizable: bool) -> *mut WindowBuilder {
+    let window_builder: &WindowBuilder = to_rust_reference!(_ptr_window_builder);
     return window_builder_with!(window_builder.with_resizable(with_resizable));
 }
 
 #[no_mangle]
-pub fn glutin_window_builder_with_dimensions(_ptr_window_builder: *mut glutin::WindowBuilder, width: f64, height: f64) -> *mut glutin::WindowBuilder {
-    let window_builder: &glutin::WindowBuilder = to_rust_reference!(_ptr_window_builder);
+pub fn glutin_window_builder_with_dimensions(_ptr_window_builder: *mut WindowBuilder, width: f64, height: f64) -> *mut WindowBuilder {
+    let window_builder: &WindowBuilder = to_rust_reference!(_ptr_window_builder);
     return window_builder_with!(window_builder.with_dimensions(LogicalSize::new(width, height)));
 }
 
 #[no_mangle]
-pub fn glutin_window_builder_with_maximized(_ptr_window_builder: *mut glutin::WindowBuilder, with_maximized: bool) -> *mut glutin::WindowBuilder {
-    let window_builder: &glutin::WindowBuilder = to_rust_reference!(_ptr_window_builder);
+pub fn glutin_window_builder_with_maximized(_ptr_window_builder: *mut WindowBuilder, with_maximized: bool) -> *mut WindowBuilder {
+    let window_builder: &WindowBuilder = to_rust_reference!(_ptr_window_builder);
     return window_builder_with!(window_builder.with_maximized(with_maximized));
 }
 
 #[no_mangle]
-pub fn glutin_window_builder_with_visibility(_ptr_window_builder: *mut glutin::WindowBuilder, with_visibility: bool) -> *mut glutin::WindowBuilder {
-    let window_builder: &glutin::WindowBuilder = to_rust_reference!(_ptr_window_builder);
+pub fn glutin_window_builder_with_visibility(_ptr_window_builder: *mut WindowBuilder, with_visibility: bool) -> *mut WindowBuilder {
+    let window_builder: &WindowBuilder = to_rust_reference!(_ptr_window_builder);
     return window_builder_with!(window_builder.with_visibility(with_visibility));
 }
 
 
 #[no_mangle]
-pub fn glutin_window_builder_with_always_on_top(_ptr_window_builder: *mut glutin::WindowBuilder, with_always_on_top: bool) -> *mut glutin::WindowBuilder {
-    let window_builder: &glutin::WindowBuilder = to_rust_reference!(_ptr_window_builder);
+pub fn glutin_window_builder_with_always_on_top(_ptr_window_builder: *mut WindowBuilder, with_always_on_top: bool) -> *mut WindowBuilder {
+    let window_builder: &WindowBuilder = to_rust_reference!(_ptr_window_builder);
     return window_builder_with!(window_builder.with_always_on_top(with_always_on_top));
 }
 
@@ -701,7 +699,7 @@ pub fn glutin_window_builder_with_always_on_top(_ptr_window_builder: *mut glutin
 macro_rules! context_builder_with {
     ($name:ident.$function:ident($($variable:expr),+)) => {
         {
-            let mut context_builder_tmp = glutin::ContextBuilder::new();
+            let mut context_builder_tmp = ContextBuilder::new();
             context_builder_tmp.gl_attr.clone_from(&$name.gl_attr);
             context_builder_tmp.pf_reqs.clone_from(&$name.pf_reqs);
             context_builder_tmp = context_builder_tmp.$function($($variable),+);
@@ -712,19 +710,19 @@ macro_rules! context_builder_with {
 }
 
 #[no_mangle]
-pub fn glutin_create_context_builder() -> *mut glutin::ContextBuilder<'static, glutin::NotCurrent> {
-    let context_builder = glutin::ContextBuilder::new()
-        .with_gl_robustness(glutin::Robustness::TryRobustNoResetNotification)
-        .with_gl_profile(glutin::GlProfile::Core);
+pub fn glutin_create_context_builder() -> *mut ContextBuilder<'static, NotCurrent> {
+    let context_builder = ContextBuilder::new()
+        .with_gl_robustness(Robustness::TryRobustNoResetNotification)
+        .with_gl_profile(GlProfile::Core);
 
     let _ptr_context_builder = for_create!(context_builder);
     _ptr_context_builder
 }
 
 #[no_mangle]
-pub fn glutin_context_builder_with_gl_then_gles(_ptr_context_builder: *mut glutin::ContextBuilder<glutin::NotCurrent>, gl_major: u8, gl_minor: u8, gles_major: u8, gles_minor: u8) -> *mut glutin::ContextBuilder<'static, glutin::NotCurrent> {
-    let context_builder: &glutin::ContextBuilder<glutin::NotCurrent> = to_rust_reference!(_ptr_context_builder);
-    return context_builder_with!(context_builder.with_gl(glutin::GlRequest::GlThenGles {
+pub fn glutin_context_builder_with_gl_then_gles(_ptr_context_builder: *mut ContextBuilder<NotCurrent>, gl_major: u8, gl_minor: u8, gles_major: u8, gles_minor: u8) -> *mut ContextBuilder<'static, NotCurrent> {
+    let context_builder: &ContextBuilder<NotCurrent> = to_rust_reference!(_ptr_context_builder);
+    return context_builder_with!(context_builder.with_gl(GlRequest::GlThenGles {
         /// The version to use for OpenGL.
         opengl_version: (gl_major, gl_minor),
         /// The version to use for OpenGL ES.
@@ -733,62 +731,62 @@ pub fn glutin_context_builder_with_gl_then_gles(_ptr_context_builder: *mut gluti
 }
 
 #[no_mangle]
-pub fn glutin_context_builder_with_gl_latest(_ptr_context_builder: *mut glutin::ContextBuilder<glutin::NotCurrent>) -> *mut glutin::ContextBuilder<'static, glutin::NotCurrent> {
-    let context_builder: &glutin::ContextBuilder<glutin::NotCurrent> = to_rust_reference!(_ptr_context_builder);
-    return context_builder_with!(context_builder.with_gl(glutin::GlRequest::Latest));
+pub fn glutin_context_builder_with_gl_latest(_ptr_context_builder: *mut ContextBuilder<NotCurrent>) -> *mut ContextBuilder<'static, NotCurrent> {
+    let context_builder: &ContextBuilder<NotCurrent> = to_rust_reference!(_ptr_context_builder);
+    return context_builder_with!(context_builder.with_gl(GlRequest::Latest));
 }
 
 #[no_mangle]
-pub fn glutin_context_builder_with_gl_profile_core(_ptr_context_builder: *mut glutin::ContextBuilder<glutin::NotCurrent>) -> *mut glutin::ContextBuilder<'static, glutin::NotCurrent> {
-    let context_builder: &glutin::ContextBuilder<glutin::NotCurrent> = to_rust_reference!(_ptr_context_builder);
-    return context_builder_with!(context_builder.with_gl_profile(glutin::GlProfile::Core));
+pub fn glutin_context_builder_with_gl_profile_core(_ptr_context_builder: *mut ContextBuilder<NotCurrent>) -> *mut ContextBuilder<'static, NotCurrent> {
+    let context_builder: &ContextBuilder<NotCurrent> = to_rust_reference!(_ptr_context_builder);
+    return context_builder_with!(context_builder.with_gl_profile(GlProfile::Core));
 }
 
 #[no_mangle]
-pub fn glutin_context_builder_with_multisampling(_ptr_context_builder: *mut glutin::ContextBuilder<glutin::NotCurrent>, samples: u16) -> *mut glutin::ContextBuilder<'static, glutin::NotCurrent> {
-    let context_builder: &glutin::ContextBuilder<glutin::NotCurrent> = to_rust_reference!(_ptr_context_builder);
+pub fn glutin_context_builder_with_multisampling(_ptr_context_builder: *mut ContextBuilder<NotCurrent>, samples: u16) -> *mut ContextBuilder<'static, NotCurrent> {
+    let context_builder: &ContextBuilder<NotCurrent> = to_rust_reference!(_ptr_context_builder);
     return context_builder_with!(context_builder.with_multisampling(samples));
 }
 
 #[no_mangle]
-pub fn glutin_context_builder_with_depth_buffer(_ptr_context_builder: *mut glutin::ContextBuilder<glutin::NotCurrent>, bits: u8) -> *mut glutin::ContextBuilder<'static, glutin::NotCurrent> {
-    let context_builder: &glutin::ContextBuilder<glutin::NotCurrent> = to_rust_reference!(_ptr_context_builder);
+pub fn glutin_context_builder_with_depth_buffer(_ptr_context_builder: *mut ContextBuilder<NotCurrent>, bits: u8) -> *mut ContextBuilder<'static, NotCurrent> {
+    let context_builder: &ContextBuilder<NotCurrent> = to_rust_reference!(_ptr_context_builder);
     return context_builder_with!(context_builder.with_depth_buffer(bits));
 }
 
 #[no_mangle]
-pub fn glutin_context_builder_with_stencil_buffer(_ptr_context_builder: *mut glutin::ContextBuilder<glutin::NotCurrent>, bits: u8) -> *mut glutin::ContextBuilder<'static, glutin::NotCurrent> {
-    let context_builder: &glutin::ContextBuilder<glutin::NotCurrent> = to_rust_reference!(_ptr_context_builder);
+pub fn glutin_context_builder_with_stencil_buffer(_ptr_context_builder: *mut ContextBuilder<NotCurrent>, bits: u8) -> *mut ContextBuilder<'static, NotCurrent> {
+    let context_builder: &ContextBuilder<NotCurrent> = to_rust_reference!(_ptr_context_builder);
     return context_builder_with!(context_builder.with_stencil_buffer(bits));
 }
 
 #[no_mangle]
-pub fn glutin_context_builder_with_pixel_format(_ptr_context_builder: *mut glutin::ContextBuilder<glutin::NotCurrent>, color_bits: u8, alpha_bits: u8) -> *mut glutin::ContextBuilder<'static, glutin::NotCurrent> {
-    let context_builder: &glutin::ContextBuilder<glutin::NotCurrent> = to_rust_reference!(_ptr_context_builder);
+pub fn glutin_context_builder_with_pixel_format(_ptr_context_builder: *mut ContextBuilder<NotCurrent>, color_bits: u8, alpha_bits: u8) -> *mut ContextBuilder<'static, NotCurrent> {
+    let context_builder: &ContextBuilder<NotCurrent> = to_rust_reference!(_ptr_context_builder);
     return context_builder_with!(context_builder.with_pixel_format(color_bits, alpha_bits));
 }
 
 #[no_mangle]
-pub fn glutin_context_builder_with_vsync(_ptr_context_builder: *mut glutin::ContextBuilder<glutin::NotCurrent>, vsync: bool) -> *mut glutin::ContextBuilder<'static, glutin::NotCurrent> {
-    let context_builder: &glutin::ContextBuilder<glutin::NotCurrent> = to_rust_reference!(_ptr_context_builder);
+pub fn glutin_context_builder_with_vsync(_ptr_context_builder: *mut ContextBuilder<NotCurrent>, vsync: bool) -> *mut ContextBuilder<'static, NotCurrent> {
+    let context_builder: &ContextBuilder<NotCurrent> = to_rust_reference!(_ptr_context_builder);
     return context_builder_with!(context_builder.with_vsync(vsync));
 }
 
 #[no_mangle]
-pub fn glutin_context_builder_with_srgb(_ptr_context_builder: *mut glutin::ContextBuilder<glutin::NotCurrent>, srgb_enabled: bool) -> *mut glutin::ContextBuilder<'static, glutin::NotCurrent> {
-    let context_builder: &glutin::ContextBuilder<glutin::NotCurrent> = to_rust_reference!(_ptr_context_builder);
+pub fn glutin_context_builder_with_srgb(_ptr_context_builder: *mut ContextBuilder<NotCurrent>, srgb_enabled: bool) -> *mut ContextBuilder<'static, NotCurrent> {
+    let context_builder: &ContextBuilder<NotCurrent> = to_rust_reference!(_ptr_context_builder);
     return context_builder_with!(context_builder.with_srgb(srgb_enabled));
 }
 
 #[no_mangle]
-pub fn glutin_context_builder_with_double_buffer(_ptr_context_builder: *mut glutin::ContextBuilder<glutin::NotCurrent>, double_buffer_enabled: bool) -> *mut glutin::ContextBuilder<'static, glutin::NotCurrent> {
-    let context_builder: &glutin::ContextBuilder<glutin::NotCurrent> = to_rust_reference!(_ptr_context_builder);
+pub fn glutin_context_builder_with_double_buffer(_ptr_context_builder: *mut ContextBuilder<NotCurrent>, double_buffer_enabled: bool) -> *mut ContextBuilder<'static, NotCurrent> {
+    let context_builder: &ContextBuilder<NotCurrent> = to_rust_reference!(_ptr_context_builder);
     return context_builder_with!(context_builder.with_double_buffer(Some(double_buffer_enabled)));
 }
 
 #[no_mangle]
-pub fn glutin_destroy_context_builder(_ptr: *mut glutin::ContextBuilder<glutin::PossiblyCurrent>) {
-    let _context_builder: Box<glutin::ContextBuilder<glutin::PossiblyCurrent>> = for_delete!(_ptr);
+pub fn glutin_destroy_context_builder(_ptr: *mut ContextBuilder<PossiblyCurrent>) {
+    let _context_builder: Box<ContextBuilder<PossiblyCurrent>> = for_delete!(_ptr);
     // Drop
 }
 
@@ -798,18 +796,18 @@ pub fn glutin_destroy_context_builder(_ptr: *mut glutin::ContextBuilder<glutin::
 
 #[no_mangle]
 pub fn glutin_create_windowed_context(
-        _ptr_events_loop: *mut glutin::EventsLoop,
-        _ptr_window_builder: *mut glutin::WindowBuilder,
-        _ptr_context_builder: *mut glutin::ContextBuilder<glutin::NotCurrent>) -> *mut glutin::WindowedContext<glutin::NotCurrent> {
+        _ptr_events_loop: *mut EventLoop<()>,
+        _ptr_window_builder: *mut WindowBuilder,
+        _ptr_context_builder: *mut ContextBuilder<NotCurrent>) -> *mut WindowedContext<NotCurrent> {
 
-    let events_loop: &mut glutin::EventsLoop = to_rust_reference!(_ptr_events_loop);
+    let events_loop: &mut EventLoop<()> = to_rust_reference!(_ptr_events_loop);
     let window_builder = to_rust_reference!(_ptr_window_builder);
     let context_builder = to_rust_reference!(_ptr_context_builder);
 
-    let mut new_window_builder = glutin::WindowBuilder::new();
+    let mut new_window_builder = WindowBuilder::new();
     new_window_builder.clone_from(window_builder);
 
-    let mut new_context_builder = glutin::ContextBuilder::new();
+    let mut new_context_builder = ContextBuilder::new();
     new_context_builder.gl_attr.clone_from(&context_builder.gl_attr);
     new_context_builder.pf_reqs.clone_from(&context_builder.pf_reqs);
 
@@ -827,26 +825,26 @@ pub fn glutin_create_windowed_context(
 }
 
 #[no_mangle]
-pub fn glutin_destroy_windowed_context(_ptr: *mut glutin::WindowedContext<glutin::PossiblyCurrent>) {
-    let _window: Box<glutin::WindowedContext<glutin::PossiblyCurrent>> = for_delete!(_ptr);
+pub fn glutin_destroy_windowed_context(_ptr: *mut WindowedContext<PossiblyCurrent>) {
+    let _window: Box<WindowedContext<PossiblyCurrent>> = for_delete!(_ptr);
     // drop
 }
 
 #[no_mangle]
-pub fn glutin_windowed_context_make_current(_ptr_window: *mut glutin::WindowedContext<glutin::PossiblyCurrent>) -> *mut glutin::WindowedContext<glutin::PossiblyCurrent> {
+pub fn glutin_windowed_context_make_current(_ptr_window: *mut WindowedContext<PossiblyCurrent>) -> *mut WindowedContext<PossiblyCurrent> {
     if _ptr_window.is_null() { return _ptr_window }
 
-    let window: Box<glutin::WindowedContext<glutin::PossiblyCurrent>> = unsafe { Box::from_raw(_ptr_window) };
-    let context: glutin::WindowedContext<glutin::PossiblyCurrent>;
+    let window: Box<WindowedContext<PossiblyCurrent>> = unsafe { Box::from_raw(_ptr_window) };
+    let context: WindowedContext<PossiblyCurrent>;
 
     match unsafe { window.make_current() } {
         Ok(windowed_context) => { context = windowed_context },
         Err((windowed_context, err)) => {
             context = windowed_context;
             match err {
-                glutin::ContextError::OsError(string) => { eprintln!("OS Error in make_current: {}", string) },
-                glutin::ContextError::IoError(error)=> { eprintln!("IO Error in make_current: {:?}", error) },
-                glutin::ContextError::ContextLost => { eprintln!("ContextLost Error in make_current") }
+                ContextError::OsError(string) => { eprintln!("OS Error in make_current: {}", string) },
+                ContextError::IoError(error)=> { eprintln!("IO Error in make_current: {:?}", error) },
+                ContextError::ContextLost => { eprintln!("ContextLost Error in make_current") }
             }
         }
     }
@@ -856,43 +854,43 @@ pub fn glutin_windowed_context_make_current(_ptr_window: *mut glutin::WindowedCo
 }
 
 #[no_mangle]
-pub fn glutin_windowed_context_swap_buffers(_ptr_window: *mut glutin::WindowedContext<glutin::PossiblyCurrent>) {
+pub fn glutin_windowed_context_swap_buffers(_ptr_window: *mut WindowedContext<PossiblyCurrent>) {
     if _ptr_window.is_null() { return }
 
-    let window: &glutin::WindowedContext<glutin::PossiblyCurrent> = to_rust_reference!(_ptr_window);
+    let window: &WindowedContext<PossiblyCurrent> = to_rust_reference!(_ptr_window);
 
     match window.swap_buffers() {
         Ok(_) => {},
         Err(err) => {
             match err {
-                glutin::ContextError::OsError(string) => { eprintln!("OS Error in swap_buffers: {}", string) },
-                glutin::ContextError::IoError(error)=> { eprintln!("IO Error in swap_bufferst: {:?}", error) },
-                glutin::ContextError::ContextLost => { eprintln!("ContextLost Error in swap_buffers") }
+                ContextError::OsError(string) => { eprintln!("OS Error in swap_buffers: {}", string) },
+                ContextError::IoError(error)=> { eprintln!("IO Error in swap_bufferst: {:?}", error) },
+                ContextError::ContextLost => { eprintln!("ContextLost Error in swap_buffers") }
             }
         }
     }
 }
 
 #[no_mangle]
-pub fn glutin_windowed_context_is_current(_ptr_window: *mut glutin::WindowedContext<glutin::PossiblyCurrent>) -> bool {
+pub fn glutin_windowed_context_is_current(_ptr_window: *mut WindowedContext<PossiblyCurrent>) -> bool {
     if _ptr_window.is_null() { return false };
 
-    let window: &glutin::WindowedContext<glutin::PossiblyCurrent> = to_rust_reference!(_ptr_window);
+    let window: &WindowedContext<PossiblyCurrent> = to_rust_reference!(_ptr_window);
 
     return window.is_current();
 }
 
 #[no_mangle]
-pub fn glutin_windowed_context_get_proc_address(_ptr_window: *mut glutin::WindowedContext<glutin::PossiblyCurrent>, _ptr_proc_name: *const c_char) -> *const () {
-    let window: &glutin::WindowedContext<glutin::PossiblyCurrent> = to_rust_reference!(_ptr_window);
+pub fn glutin_windowed_context_get_proc_address(_ptr_window: *mut WindowedContext<PossiblyCurrent>, _ptr_proc_name: *const c_char) -> *const () {
+    let window: &WindowedContext<PossiblyCurrent> = to_rust_reference!(_ptr_window);
     let proc_name = to_rust_string!(_ptr_proc_name);
     let address = window.get_proc_address(proc_name);
     address
 }
 
 #[no_mangle]
-pub fn glutin_windowed_context_get_framebuffer_size(_ptr_window: *mut glutin::WindowedContext<glutin::PossiblyCurrent>, _ptr_size: *mut GlutinSizeU32) {
-    let window: &glutin::WindowedContext<glutin::PossiblyCurrent> = to_rust_reference!(_ptr_window);
+pub fn glutin_windowed_context_get_framebuffer_size(_ptr_window: *mut WindowedContext<PossiblyCurrent>, _ptr_size: *mut GlutinSizeU32) {
+    let window: &WindowedContext<PossiblyCurrent> = to_rust_reference!(_ptr_window);
 
     let size: &mut GlutinSizeU32 = to_rust_reference!(_ptr_size);
     let device_pixel_ratio = window.window().get_hidpi_factor() as f32;
@@ -907,8 +905,8 @@ pub fn glutin_windowed_context_get_framebuffer_size(_ptr_window: *mut glutin::Wi
 }
 
 #[no_mangle]
-pub fn glutin_windowed_context_get_inner_size(_ptr_window: *mut glutin::WindowedContext<glutin::PossiblyCurrent>, _ptr_size: *mut GlutinSizeF64) {
-    let window: &glutin::WindowedContext<glutin::PossiblyCurrent> = to_rust_reference!(_ptr_window);
+pub fn glutin_windowed_context_get_inner_size(_ptr_window: *mut WindowedContext<PossiblyCurrent>, _ptr_size: *mut GlutinSizeF64) {
+    let window: &WindowedContext<PossiblyCurrent> = to_rust_reference!(_ptr_window);
     let size: &mut GlutinSizeF64 = to_rust_reference!(_ptr_size);
 
     let window_size = window.window()
@@ -920,8 +918,8 @@ pub fn glutin_windowed_context_get_inner_size(_ptr_window: *mut glutin::Windowed
 }
 
 #[no_mangle]
-pub fn glutin_windowed_context_get_position(_ptr_window: *mut glutin::WindowedContext<glutin::PossiblyCurrent>, _ptr_position: *mut GlutinSizeF64) {
-    let window: &glutin::WindowedContext<glutin::PossiblyCurrent> = to_rust_reference!(_ptr_window);
+pub fn glutin_windowed_context_get_position(_ptr_window: *mut WindowedContext<PossiblyCurrent>, _ptr_position: *mut GlutinSizeF64) {
+    let window: &WindowedContext<PossiblyCurrent> = to_rust_reference!(_ptr_window);
     let size: &mut GlutinSizeF64 = to_rust_reference!(_ptr_position);
 
     let window_position = window.window()
@@ -933,44 +931,44 @@ pub fn glutin_windowed_context_get_position(_ptr_window: *mut glutin::WindowedCo
 }
 
 #[no_mangle]
-pub fn glutin_windowed_context_set_position(_ptr_window: *mut glutin::WindowedContext<glutin::PossiblyCurrent>, x: f64, y: f64) {
-    let window: &glutin::WindowedContext<glutin::PossiblyCurrent> = to_rust_reference!(_ptr_window);
+pub fn glutin_windowed_context_set_position(_ptr_window: *mut WindowedContext<PossiblyCurrent>, x: f64, y: f64) {
+    let window: &WindowedContext<PossiblyCurrent> = to_rust_reference!(_ptr_window);
 
     window.window().set_position(LogicalPosition::new(x, y));
 }
 
 #[no_mangle]
-pub fn glutin_windowed_context_set_title(_ptr_window: *mut glutin::WindowedContext<glutin::PossiblyCurrent>, _ptr_title: *const c_char) {
-    let window: &glutin::WindowedContext<glutin::PossiblyCurrent> = to_rust_reference!(_ptr_window);
+pub fn glutin_windowed_context_set_title(_ptr_window: *mut WindowedContext<PossiblyCurrent>, _ptr_title: *const c_char) {
+    let window: &WindowedContext<PossiblyCurrent> = to_rust_reference!(_ptr_window);
     let title = to_rust_string!(_ptr_title);
     window.window().set_title(title);
 }
 
 #[no_mangle]
-pub fn glutin_windowed_context_set_inner_size(_ptr_window: *mut glutin::WindowedContext<glutin::PossiblyCurrent>, _width: f64, _height: f64) {
-    let window: &glutin::WindowedContext<glutin::PossiblyCurrent> = to_rust_reference!(_ptr_window);
+pub fn glutin_windowed_context_set_inner_size(_ptr_window: *mut WindowedContext<PossiblyCurrent>, _width: f64, _height: f64) {
+    let window: &WindowedContext<PossiblyCurrent> = to_rust_reference!(_ptr_window);
 
     window.window().set_inner_size(LogicalSize::new(_width, _height));
 }
 
 #[no_mangle]
-pub fn glutin_windowed_context_resize_logical(_ptr_window: *mut glutin::WindowedContext<glutin::PossiblyCurrent>, _width: f64, _height: f64) {
-    let window: &glutin::WindowedContext<glutin::PossiblyCurrent> = to_rust_reference!(_ptr_window);
+pub fn glutin_windowed_context_resize_logical(_ptr_window: *mut WindowedContext<PossiblyCurrent>, _width: f64, _height: f64) {
+    let window: &WindowedContext<PossiblyCurrent> = to_rust_reference!(_ptr_window);
 
     let dpi_factor = window.window().get_hidpi_factor();
     window.resize(LogicalSize::new(_width, _height).to_physical(dpi_factor));
 }
 
 #[no_mangle]
-pub fn glutin_windowed_context_resize_physical(_ptr_window: *mut glutin::WindowedContext<glutin::PossiblyCurrent>, _width: f64, _height: f64) {
-    let window: &glutin::WindowedContext<glutin::PossiblyCurrent> = to_rust_reference!(_ptr_window);
+pub fn glutin_windowed_context_resize_physical(_ptr_window: *mut WindowedContext<PossiblyCurrent>, _width: f64, _height: f64) {
+    let window: &WindowedContext<PossiblyCurrent> = to_rust_reference!(_ptr_window);
 
     window.resize(PhysicalSize::new(_width, _height));
 }
 
 #[no_mangle]
-pub fn glutin_windowed_context_get_id(_ptr_window: *mut glutin::WindowedContext<glutin::PossiblyCurrent>, _ptr_size: *mut GlutinSizeU64) {
-    let window: &glutin::WindowedContext<glutin::PossiblyCurrent> = to_rust_reference!(_ptr_window);
+pub fn glutin_windowed_context_get_id(_ptr_window: *mut WindowedContext<PossiblyCurrent>, _ptr_size: *mut GlutinSizeU64) {
+    let window: &WindowedContext<PossiblyCurrent> = to_rust_reference!(_ptr_window);
     let size: &mut GlutinSizeU64 = to_rust_reference!(_ptr_size);
 
     let id: (u64, u64) = glutin_convert_window_id(window.window().id());
