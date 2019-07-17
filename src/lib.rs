@@ -38,6 +38,7 @@ pub struct GlutinEvent {
     received_character: GlutinEventReceivedCharacter,
     window_resized: GlutinWindowResizedEvent,
     window_moved: GlutinWindowMovedEvent,
+    window_focused: GlutinWindowFocusedEvent
 }
 
 #[derive(Debug, Copy, Clone, Default)]
@@ -90,6 +91,12 @@ pub struct GlutinWindowResizedEvent {
 pub struct GlutinWindowMovedEvent {
     x: f64,
     y: f64
+}
+
+#[derive(Debug, Copy, Clone, Default)]
+#[repr(C)]
+pub struct GlutinWindowFocusedEvent {
+    is_focused: bool
 }
 
 #[derive(Debug, Copy, Clone)]
@@ -284,6 +291,10 @@ fn glutin_events_loop_process_event(global_event: glutin::Event, c_event: &mut G
                     c_event.event_type = GlutinEventType::WindowEventResized;
                     c_event.window_resized.width = width;
                     c_event.window_resized.height = height;
+                },
+                glutin::WindowEvent::Focused(is_focused) => {
+                    c_event.event_type = GlutinEventType::WindowEventFocused;
+                    c_event.window_focused.is_focused = is_focused;
                 },
                 glutin::WindowEvent::Moved(LogicalPosition { x, y }) => {
                     c_event.event_type = GlutinEventType::WindowEventMoved;
