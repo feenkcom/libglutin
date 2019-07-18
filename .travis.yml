@@ -10,6 +10,10 @@ rust:
 
 cache: cargo
 
+branches:
+  only:
+  - master
+
 script:
 - cargo build --release
 
