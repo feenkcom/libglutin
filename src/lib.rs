@@ -3,7 +3,6 @@
 extern crate glutin;
 extern crate libc;
 extern crate gleam;
-extern crate winit;
 
 use libc::{c_char};
 use std::ffi::CStr;
@@ -18,8 +17,6 @@ use glutin::event_loop::*;
 use glutin::monitor::*;
 
 use gleam::gl;
-
-use winit::platform::desktop::EventLoopExtDesktop;
 
 #[macro_use]
 mod cmacro;
@@ -252,6 +249,20 @@ pub enum GlutinEventInputElementState {
     Released
 }
 
+#[derive(Debug, Copy, Clone)]
+#[repr(u32)]
+pub enum GlutinControlFlow {
+    /// When the current loop iteration finishes, immediately begin a new iteration regardless of
+    /// whether or not new events are available to process.
+    Poll,
+    /// When the current loop iteration finishes, suspend the thread until another event arrives.
+    Wait,
+    /// Send a `LoopDestroyed` event and stop the event loop. This variant is *sticky* - once set,
+    /// `control_flow` cannot be changed from `Exit`, and any future attempts to do so will result
+    /// in the `control_flow` parameter being reset to `Exit`.
+    Exit,
+}
+
 impl Default for GlutinEventInputElementState {
     fn default() -> Self { GlutinEventInputElementState::Unknown }
 }
@@ -300,11 +311,11 @@ fn glutin_events_loop_process_event(global_event: glutin::event::Event<()>, c_ev
                     c_event.window_resized.width = width;
                     c_event.window_resized.height = height;
                 },
-                glutin::WindowEvent::Focused(is_focused) => {
+                WindowEvent::Focused(is_focused) => {
                     c_event.event_type = GlutinEventType::WindowEventFocused;
                     c_event.window_focused.is_focused = is_focused;
                 },
-                glutin::WindowEvent::Moved(LogicalPosition { x, y }) => {
+                WindowEvent::Moved(LogicalPosition { x, y }) => {
                     c_event.event_type = GlutinEventType::WindowEventMoved;
                     c_event.window_moved.x = x;
                     c_event.window_moved.y = y;
@@ -561,30 +572,23 @@ pub fn glutin_create_fetched_events() -> *mut GlutinFetchedEvents {
 
 
 #[no_mangle]
-pub fn glutin_events_loop_fetch_events(_ptr_event_loop: *mut EventLoop<()>, _ptr_fetched_events: *mut GlutinFetchedEvents) {
-    CBox::with_two_raw(_ptr_event_loop, _ptr_fetched_events, | event_loop, fetched_events| {
-        let mut events: Vec<GlutinEvent> = Vec::new();
+pub fn glutin_events_loop_run_forever(_ptr_events_loop: *mut EventLoop<()>, callback: extern fn(*mut GlutinEvent) -> GlutinControlFlow) {
+    let events_loop = CBox::from_raw(_ptr_events_loop);
 
-        // turned out, poll_events doesn't poll *ALL* events, therefore we should loop until there are no more events to poll
-        let mut had_event = true;
-        while had_event {
-            had_event = false;
-            event_loop.run_return(|global_event: Event<()>, event_loop_window_target: &EventLoopWindowTarget<()>, control_flow: &mut ControlFlow| {
-                had_event = true;
-                let mut c_event: GlutinEvent = Default::default();
-                let processed = glutin_events_loop_process_event(global_event, &mut c_event);
-                if processed { events.push(c_event) };
-            });
-        }
-
-        let mut buf = events.into_boxed_slice();
-        let data = buf.as_mut_ptr();
-        let len = buf.len();
-        std::mem::forget(buf);
-
-        fetched_events.data = data;
-        fetched_events.length = len;
-    });
+	events_loop.run(move |event, _events_loop: &EventLoopWindowTarget<()>, control_flow: &mut ControlFlow| {
+		*control_flow = ControlFlow::Poll;
+		
+        let mut c_event: GlutinEvent = Default::default();
+        let processed = glutin_events_loop_process_event(event, &mut c_event);
+        if processed {
+        	let c_control_flow = callback(&mut c_event);
+			match c_control_flow {
+			    GlutinControlFlow::Poll => { *control_flow = ControlFlow::Poll },
+			    GlutinControlFlow::Wait => { *control_flow = ControlFlow::Wait },
+			    GlutinControlFlow::Exit => { *control_flow = ControlFlow::Exit }
+			}
+        };
+	});
 }
 
 #[no_mangle]
