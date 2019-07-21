@@ -206,9 +206,14 @@ pub enum GlutinEventType {
     WindowEventMouseInput,
     WindowEventTouchpadPressure,
     WindowEventAxisMotion,
-    WindowEventRefresh,
+    WindowEventRedrawRequested,
     WindowEventTouch,
     WindowEventHiDpiFactorChanged,
+    NewEvents,
+    EventsCleared,
+    LoopDestroyed,
+    Suspended,
+    Resumed
 }
 
 impl Default for GlutinEventType {
@@ -295,12 +300,10 @@ fn glutin_convert_window_id(window_id: WindowId) -> (u64, u64) {
 
 fn glutin_events_loop_process_event(global_event: glutin::event::Event<()>, c_event: &mut GlutinEvent) -> bool {
     c_event.event_type = GlutinEventType::Unknown;
-    let mut result = false;
+    let mut result = true;
 
     match global_event {
         glutin::event::Event::WindowEvent { event, window_id } => {
-            result = true;
-
             let id: (u64, u64) = glutin_convert_window_id(window_id);
             c_event.window_id.x = id.0;
             c_event.window_id.y = id.1;
@@ -327,7 +330,7 @@ fn glutin_events_loop_process_event(global_event: glutin::event::Event<()>, c_ev
                     c_event.event_type = GlutinEventType::WindowEventDestroyed;
                 },
                 WindowEvent::RedrawRequested => {
-                    c_event.event_type = GlutinEventType::WindowEventRefresh;
+                    c_event.event_type = GlutinEventType::WindowEventRedrawRequested;
                 },
                 WindowEvent::Touch(Touch {device_id, phase, location, id}) => {
                     glutin_event_loop_process_touch(c_event, device_id, phase, location, id);
@@ -343,14 +346,29 @@ fn glutin_events_loop_process_event(global_event: glutin::event::Event<()>, c_ev
                 },
                 WindowEvent::KeyboardInput { device_id, input } => {
                     glutin_event_loop_process_keyboard_input (c_event, device_id, input);
-                }
+                },
                 WindowEvent::ReceivedCharacter (character) => {
                     glutin_event_loop_process_received_character (c_event, character);
-                }
+                },
                 _ => ({result = false})
             }
         },
-        _ => ()
+        glutin::event::Event::NewEvents(_start_cause) => {
+            c_event.event_type = GlutinEventType::NewEvents;
+        },
+        glutin::event::Event::EventsCleared => {
+            c_event.event_type = GlutinEventType::EventsCleared;
+        },
+        glutin::event::Event::LoopDestroyed => {
+            c_event.event_type = GlutinEventType::LoopDestroyed;
+        },
+        glutin::event::Event::Suspended => {
+            c_event.event_type = GlutinEventType::Suspended;
+        },
+        glutin::event::Event::Resumed => {
+            c_event.event_type = GlutinEventType::Resumed;
+        },
+        _ => ({result = false})
     }
     result
 }
@@ -557,17 +575,9 @@ pub fn glutin_create_events_loop() -> *mut EventLoop<()> {
     CBox::into_raw(EventLoop::new())
 }
 
-
 #[no_mangle]
 pub fn glutin_destroy_events_loop(_ptr: *mut EventLoop<()>) {
     CBox::from_raw(_ptr);
-}
-
-#[no_mangle]
-pub fn glutin_create_fetched_events() -> *mut GlutinFetchedEvents {
-    let fetched_events = GlutinFetchedEvents { data: std::ptr::null_mut(), length: 0 };
-    let _fetched_events_ptr: *mut GlutinFetchedEvents = Box::into_raw(Box::new(fetched_events));
-    _fetched_events_ptr
 }
 
 
@@ -577,7 +587,6 @@ pub fn glutin_events_loop_run_forever(_ptr_events_loop: *mut EventLoop<()>, call
 
 	events_loop.run(move |event, _events_loop: &EventLoopWindowTarget<()>, control_flow: &mut ControlFlow| {
 		*control_flow = ControlFlow::Poll;
-		
         let mut c_event: GlutinEvent = Default::default();
         let processed = glutin_events_loop_process_event(event, &mut c_event);
         if processed {
@@ -591,23 +600,6 @@ pub fn glutin_events_loop_run_forever(_ptr_events_loop: *mut EventLoop<()>, call
 	});
 }
 
-#[no_mangle]
-fn glutin_events_loop_free_events(_ptr_fetched_events: *mut GlutinFetchedEvents) {
-    let mut buf: Box<GlutinFetchedEvents> = unsafe { Box::from_raw(_ptr_fetched_events) };
-
-    if !buf.data.is_null() && buf.length > 0 {
-        let s = unsafe { std::slice::from_raw_parts_mut(buf.data, buf.length) };
-        let s = s.as_mut_ptr();
-        unsafe {
-            Box::from_raw(s);
-        }
-    }
-
-    buf.data = std::ptr::null_mut();
-    buf.length = 0;
-}
-
-
 ///////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////// M O N I T O R    I D /////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////
@@ -615,7 +607,7 @@ fn glutin_events_loop_free_events(_ptr_fetched_events: *mut GlutinFetchedEvents)
 #[no_mangle]
 fn glutin_events_loop_get_primary_monitor(_ptr_event_loop: *mut EventLoop<()>) -> *mut MonitorHandle {
     CBox::with_raw(_ptr_event_loop, |event_loop| {
-        CBox::into_raw(event_loop.get_primary_monitor())
+        CBox::into_raw(event_loop.primary_monitor())
     })
 }
 
@@ -626,7 +618,7 @@ fn glutin_primary_monitor_free (_ptr_monitor_id: *mut MonitorHandle) {
 
 #[no_mangle]
 fn glutin_primary_monitor_get_hidpi_factor (_ptr_monitor_id: *mut MonitorHandle) -> f64 {
-    CBox::with_raw(_ptr_monitor_id, |monitor_id| monitor_id.get_hidpi_factor() )
+    CBox::with_raw(_ptr_monitor_id, |monitor_id| monitor_id.hidpi_factor() )
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////
@@ -673,7 +665,7 @@ pub fn glutin_window_builder_with_decorations(_ptr_window_builder: *mut WindowBu
 #[no_mangle]
 pub fn glutin_window_builder_with_transparency(_ptr_window_builder: *mut WindowBuilder, with_transparency: bool) -> *mut WindowBuilder {
     let window_builder: &WindowBuilder = to_rust_reference!(_ptr_window_builder);
-    return window_builder_with!(window_builder.with_transparency(with_transparency));
+    return window_builder_with!(window_builder.with_transparent(with_transparency));
 }
 
 #[no_mangle]
@@ -685,7 +677,7 @@ pub fn glutin_window_builder_with_resizable(_ptr_window_builder: *mut WindowBuil
 #[no_mangle]
 pub fn glutin_window_builder_with_dimensions(_ptr_window_builder: *mut WindowBuilder, width: f64, height: f64) -> *mut WindowBuilder {
     let window_builder: &WindowBuilder = to_rust_reference!(_ptr_window_builder);
-    return window_builder_with!(window_builder.with_dimensions(LogicalSize::new(width, height)));
+    return window_builder_with!(window_builder.with_inner_size(LogicalSize::new(width, height)));
 }
 
 #[no_mangle]
@@ -697,7 +689,7 @@ pub fn glutin_window_builder_with_maximized(_ptr_window_builder: *mut WindowBuil
 #[no_mangle]
 pub fn glutin_window_builder_with_visibility(_ptr_window_builder: *mut WindowBuilder, with_visibility: bool) -> *mut WindowBuilder {
     let window_builder: &WindowBuilder = to_rust_reference!(_ptr_window_builder);
-    return window_builder_with!(window_builder.with_visibility(with_visibility));
+    return window_builder_with!(window_builder.with_visible(with_visibility));
 }
 
 
@@ -908,11 +900,10 @@ pub fn glutin_windowed_context_get_framebuffer_size(_ptr_window: *mut WindowedCo
     let window: &WindowedContext<PossiblyCurrent> = to_rust_reference!(_ptr_window);
 
     let size: &mut GlutinSizeU32 = to_rust_reference!(_ptr_size);
-    let device_pixel_ratio = window.window().get_hidpi_factor() as f32;
+    let device_pixel_ratio = window.window().hidpi_factor() as f32;
 
     let window_size = window.window()
-        .get_inner_size()
-        .unwrap()
+        .inner_size()
         .to_physical(device_pixel_ratio as f64);
 
     size.x = window_size.width as u32;
@@ -925,8 +916,7 @@ pub fn glutin_windowed_context_get_inner_size(_ptr_window: *mut WindowedContext<
     let size: &mut GlutinSizeF64 = to_rust_reference!(_ptr_size);
 
     let window_size = window.window()
-        .get_inner_size()
-        .unwrap();
+        .inner_size();
 
     size.x = window_size.width;
     size.y = window_size.height;
@@ -938,7 +928,7 @@ pub fn glutin_windowed_context_get_position(_ptr_window: *mut WindowedContext<Po
     let size: &mut GlutinSizeF64 = to_rust_reference!(_ptr_position);
 
     let window_position = window.window()
-        .get_position()
+        .outer_position()
         .unwrap();
 
     size.x = window_position.x;
@@ -949,7 +939,7 @@ pub fn glutin_windowed_context_get_position(_ptr_window: *mut WindowedContext<Po
 pub fn glutin_windowed_context_set_position(_ptr_window: *mut WindowedContext<PossiblyCurrent>, x: f64, y: f64) {
     let window: &WindowedContext<PossiblyCurrent> = to_rust_reference!(_ptr_window);
 
-    window.window().set_position(LogicalPosition::new(x, y));
+    window.window().set_outer_position(LogicalPosition::new(x, y));
 }
 
 #[no_mangle]
@@ -970,7 +960,7 @@ pub fn glutin_windowed_context_set_inner_size(_ptr_window: *mut WindowedContext<
 pub fn glutin_windowed_context_resize_logical(_ptr_window: *mut WindowedContext<PossiblyCurrent>, _width: f64, _height: f64) {
     let window: &WindowedContext<PossiblyCurrent> = to_rust_reference!(_ptr_window);
 
-    let dpi_factor = window.window().get_hidpi_factor();
+    let dpi_factor = window.window().hidpi_factor();
     window.resize(LogicalSize::new(_width, _height).to_physical(dpi_factor));
 }
 
