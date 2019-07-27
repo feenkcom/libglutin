@@ -1,12 +1,12 @@
 [package]
 name = "libglutin"
-version = "0.1.0"
+version = "0.2.0"
 authors = ["Aliaksei Syrel <alex.syrel@gmail.com>"]
 
 [dependencies]
-glutin = "0.21.0"
-gleam = "0.6.17"
-libc = "0.2.54"
+glutin = "0.22.0-alpha1"
+gleam = "0.6.18"
+libc = "0.2.60"
 
 [lib]
 name = "Glutin"
