@@ -584,11 +584,30 @@ pub fn glutin_destroy_events_loop(_ptr: *mut EventLoop<()>) {
 #[derive(Debug)]
 #[repr(C)]
 pub struct GlutinEventLoopCallback {
-    is_valid: bool
+    is_valid: bool,
+    is_running: bool,
+    callback: extern fn(*mut GlutinEvent) -> GlutinControlFlow
+}
+
+
+#[no_mangle]
+pub fn glutin_events_loop_call_callback( _ptr_events_loop_callback: *mut GlutinEventLoopCallback) {
+    if _ptr_events_loop_callback.is_null() {
+        eprintln!("[glutin_events_loop_call_callback] _ptr_events_loop_callback is null");
+        return;
+    }
+
+    let events_loop_callback: &mut GlutinEventLoopCallback = to_rust_reference!(_ptr_events_loop_callback);
+
+    if events_loop_callback.is_valid {
+        let mut c_event: GlutinEvent = Default::default();
+        let callback = events_loop_callback.callback;
+        let c_control_flow = callback(&mut c_event);
+    }
 }
 
 #[no_mangle]
-pub fn glutin_events_loop_run_forever(_ptr_events_loop: *mut EventLoop<()>, _ptr_events_loop_callback: *mut GlutinEventLoopCallback, callback: extern fn(*mut GlutinEvent) -> GlutinControlFlow) {
+pub fn glutin_events_loop_run_forever(_ptr_events_loop: *mut EventLoop<()>, _ptr_events_loop_callback: *mut GlutinEventLoopCallback) {
     if _ptr_events_loop.is_null() {
         eprintln!("[glutin_events_loop_run_forever] _ptr_events_loop is null");
         return;
@@ -600,14 +619,16 @@ pub fn glutin_events_loop_run_forever(_ptr_events_loop: *mut EventLoop<()>, _ptr
     }
 
     let events_loop = CBox::from_raw(_ptr_events_loop);
-    let events_loop_callback: &GlutinEventLoopCallback = to_rust_reference!(_ptr_events_loop_callback);
+    let events_loop_callback: &mut GlutinEventLoopCallback = to_rust_reference!(_ptr_events_loop_callback);
 
+    events_loop_callback.is_running = true;
 	events_loop.run(move |event, _events_loop: &EventLoopWindowTarget<()>, control_flow: &mut ControlFlow| {
 		*control_flow = ControlFlow::Poll;
         let mut c_event: GlutinEvent = Default::default();
         let processed = glutin_events_loop_process_event(event, &mut c_event);
         if processed {
             if events_loop_callback.is_valid {
+                let callback = events_loop_callback.callback;
                 let c_control_flow = callback(&mut c_event);
                 match c_control_flow {
                     GlutinControlFlow::Poll => { *control_flow = ControlFlow::Poll },
