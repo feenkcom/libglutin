@@ -589,7 +589,6 @@ pub struct GlutinEventLoopCallback {
     callback: extern fn(*mut GlutinEvent) -> GlutinControlFlow
 }
 
-
 #[no_mangle]
 pub fn glutin_events_loop_call_callback( _ptr_events_loop_callback: *mut GlutinEventLoopCallback) {
     if _ptr_events_loop_callback.is_null() {
@@ -602,7 +601,7 @@ pub fn glutin_events_loop_call_callback( _ptr_events_loop_callback: *mut GlutinE
     if events_loop_callback.is_valid {
         let mut c_event: GlutinEvent = Default::default();
         let callback = events_loop_callback.callback;
-        let c_control_flow = callback(&mut c_event);
+        callback(&mut c_event);
     }
 }
 
