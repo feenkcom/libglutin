@@ -580,29 +580,12 @@ pub fn glutin_destroy_events_loop(_ptr: *mut EventLoop<()>) {
     CBox::from_raw(_ptr);
 }
 
-
 #[derive(Debug)]
 #[repr(C)]
 pub struct GlutinEventLoopCallback {
     is_valid: bool,
     is_running: bool,
-    callback: extern fn(*mut GlutinEvent) -> GlutinControlFlow
-}
-
-#[no_mangle]
-pub fn glutin_events_loop_call_callback( _ptr_events_loop_callback: *mut GlutinEventLoopCallback) {
-    if _ptr_events_loop_callback.is_null() {
-        eprintln!("[glutin_events_loop_call_callback] _ptr_events_loop_callback is null");
-        return;
-    }
-
-    let events_loop_callback: &mut GlutinEventLoopCallback = to_rust_reference!(_ptr_events_loop_callback);
-
-    if events_loop_callback.is_valid {
-        let mut c_event: GlutinEvent = Default::default();
-        let callback = events_loop_callback.callback;
-        callback(&mut c_event);
-    }
+    callback: extern fn(*mut GlutinEvent, *const EventLoopWindowTarget<()>) -> GlutinControlFlow
 }
 
 #[no_mangle]
@@ -621,20 +604,21 @@ pub fn glutin_events_loop_run_forever(_ptr_events_loop: *mut EventLoop<()>, _ptr
     let events_loop_callback: &mut GlutinEventLoopCallback = to_rust_reference!(_ptr_events_loop_callback);
 
     events_loop_callback.is_running = true;
-	events_loop.run(move |event, _events_loop: &EventLoopWindowTarget<()>, control_flow: &mut ControlFlow| {
+
+    events_loop.run(move |event, _events_loop: &EventLoopWindowTarget<()>, control_flow: &mut ControlFlow| {
 		*control_flow = ControlFlow::Poll;
         let mut c_event: GlutinEvent = Default::default();
         let processed = glutin_events_loop_process_event(event, &mut c_event);
         if processed {
             if events_loop_callback.is_valid {
                 let callback = events_loop_callback.callback;
-                let c_control_flow = callback(&mut c_event);
+                let _ptr_event_events_loop: *const EventLoopWindowTarget<()> = _events_loop as *const EventLoopWindowTarget<()>;
+                let c_control_flow = callback(&mut c_event, _ptr_event_events_loop);
                 match c_control_flow {
                     GlutinControlFlow::Poll => { *control_flow = ControlFlow::Poll },
                     GlutinControlFlow::Wait => { *control_flow = ControlFlow::Wait },
                     GlutinControlFlow::Exit => { *control_flow = ControlFlow::Exit }
                 }
-                *control_flow = ControlFlow::Poll;
             }
         };
 	});
@@ -842,6 +826,77 @@ pub fn glutin_destroy_context_builder(_ptr: *mut ContextBuilder<PossiblyCurrent>
 ///////////////////////////////////////////////////////////////////////////////////////
 
 #[no_mangle]
+pub fn glutin_create_windowed_context_test() {
+    let el = EventLoop::new();
+
+    let mut windows = std::collections::HashMap::new();
+
+    for index in 0..1 {
+        let title = format!("Charming Window #{}", index + 1);
+        let wb = WindowBuilder::new().with_title(title);
+        let windowed_context =
+            ContextBuilder::new().build_windowed(wb, &el).unwrap();
+
+        let window_id = windowed_context.window().id();
+
+        windows.insert(window_id, windowed_context);
+    }
+
+    let mut window_to_close = unsafe { WindowId::dummy() };
+    let mut wants_to_close_window = false;
+    let mut wants_to_open_window = false;
+    let mut frames_to_skip_before_opening = 20;
+
+    el.run(move |event, _event_loop: &EventLoopWindowTarget<()>, control_flow| {
+        match event {
+            Event::LoopDestroyed => return,
+            Event::EventsCleared => {
+                if wants_to_open_window {
+                    frames_to_skip_before_opening -= 1;
+                    if frames_to_skip_before_opening <= 0 {
+                        wants_to_open_window = false;
+                        let _el: &EventLoop<()> = unsafe { transmute(_event_loop) };
+                        let wb = WindowBuilder::new().with_title("New Window");
+                        let windowed_context = ContextBuilder::new().build_windowed(wb, _el).unwrap();
+                        let new_window_id = windowed_context.window().id();
+                        windows.insert(new_window_id, windowed_context);
+                    }
+                }
+
+                if wants_to_close_window {
+                    wants_to_close_window = false;
+                    wants_to_open_window = true;
+                    frames_to_skip_before_opening = 2;
+                    windows.remove(&window_to_close);
+                    println!(
+                        "Window with ID {:?} has been closed",
+                        window_to_close
+                    );
+                }
+            }
+            Event::WindowEvent { event, window_id } => {
+                match event {
+                    WindowEvent::CloseRequested => {
+                        windows.remove(&window_id);
+                        println!(
+                            "Window with ID {:?} has been closed",
+                            window_id
+                        );
+                    }
+                    WindowEvent::ReceivedCharacter { .. } => {
+                        wants_to_close_window = true;
+                        window_to_close = window_id;
+                    }
+                    _ => (),
+                }
+            }
+            _ => (),
+        }
+        *control_flow = ControlFlow::Poll
+    });
+}
+
+#[no_mangle]
 pub fn glutin_create_windowed_context(
         _ptr_events_loop: *mut EventLoop<()>,
         _ptr_window_builder: *mut WindowBuilder,
@@ -873,8 +928,19 @@ pub fn glutin_create_windowed_context(
 
 #[no_mangle]
 pub fn glutin_destroy_windowed_context(_ptr: *mut WindowedContext<PossiblyCurrent>) {
-    let _window: Box<WindowedContext<PossiblyCurrent>> = for_delete!(_ptr);
-    // drop
+    let window = CBox::from_raw(_ptr);
+
+    let id = window.window().id();
+    match unsafe { window.make_not_current() } {
+        Ok(_windowed_context) => { },
+        Err((_windowed_context, err)) => {
+            match err {
+                ContextError::OsError(string) => { eprintln!("OS Error in glutin_destroy_windowed_context: {}", string) },
+                ContextError::IoError(error)=> { eprintln!("IO Error in glutin_destroy_windowed_context: {:?}", error) },
+                ContextError::ContextLost => { eprintln!("ContextLost Error in glutin_destroy_windowed_context") }
+            }
+        }
+    }
 }
 
 #[no_mangle]
@@ -911,7 +977,7 @@ pub fn glutin_windowed_context_swap_buffers(_ptr_window: *mut WindowedContext<Po
         Err(err) => {
             match err {
                 ContextError::OsError(string) => { eprintln!("OS Error in swap_buffers: {}", string) },
-                ContextError::IoError(error)=> { eprintln!("IO Error in swap_bufferst: {:?}", error) },
+                ContextError::IoError(error)=> { eprintln!("IO Error in swap_buffers: {:?}", error) },
                 ContextError::ContextLost => { eprintln!("ContextLost Error in swap_buffers") }
             }
         }
