@@ -25,6 +25,7 @@ pub mod cstruct;
 pub mod cgl;
 
 use cstruct::*;
+use std::time;
 
 ///////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////// E V E N T S ////////////////////////////////////
@@ -616,7 +617,7 @@ pub fn glutin_events_loop_run_forever(_ptr_events_loop: *mut EventLoop<()>, _ptr
                 let c_control_flow = callback(&mut c_event, _ptr_event_events_loop);
                 match c_control_flow {
                     GlutinControlFlow::Poll => { *control_flow = ControlFlow::Poll },
-                    GlutinControlFlow::Wait => { *control_flow = ControlFlow::Wait },
+                    GlutinControlFlow::Wait => { *control_flow = ControlFlow::WaitUntil(time::Instant::now() + time::Duration::new(0, 50 * 1000000)) },
                     GlutinControlFlow::Exit => { *control_flow = ControlFlow::Exit }
                 }
             }
