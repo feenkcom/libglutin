@@ -931,7 +931,6 @@ pub fn glutin_create_windowed_context(
 pub fn glutin_destroy_windowed_context(_ptr: *mut WindowedContext<PossiblyCurrent>) {
     let window = CBox::from_raw(_ptr);
 
-    let id = window.window().id();
     match unsafe { window.make_not_current() } {
         Ok(_windowed_context) => { },
         Err((_windowed_context, err)) => {
@@ -983,6 +982,15 @@ pub fn glutin_windowed_context_swap_buffers(_ptr_window: *mut WindowedContext<Po
             }
         }
     }
+}
+
+#[no_mangle]
+pub fn glutin_windowed_context_request_redraw(_ptr_window: *mut WindowedContext<PossiblyCurrent>) {
+    if _ptr_window.is_null() { return }
+
+    CBox::with_raw(_ptr_window, | window | {
+         window.window().request_redraw();
+    } );
 }
 
 #[no_mangle]
