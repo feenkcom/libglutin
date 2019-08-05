@@ -1039,15 +1039,19 @@ pub fn glutin_windowed_context_get_inner_size(_ptr_window: *mut WindowedContext<
 
 #[no_mangle]
 pub fn glutin_windowed_context_get_position(_ptr_window: *mut WindowedContext<PossiblyCurrent>, _ptr_position: *mut GlutinSizeF64) {
-    let window: &WindowedContext<PossiblyCurrent> = to_rust_reference!(_ptr_window);
-    let size: &mut GlutinSizeF64 = to_rust_reference!(_ptr_position);
-
-    let window_position = window.window()
-        .outer_position()
-        .unwrap();
-
-    size.x = window_position.x;
-    size.y = window_position.y;
+    CBox::with_two_raw(_ptr_window, _ptr_position, |window, size | {
+        match window.window().outer_position() {
+            Ok(_logical_position) => {
+                size.x = _logical_position.x;
+                size.y = _logical_position.y;
+            },
+            Err(err) => {
+                eprintln!("Error in glutin_windowed_context_get_position: {:?}", err);
+                size.x = 0.0;
+                size.y = 0.0;
+            }
+        }
+    });
 }
 
 #[no_mangle]
