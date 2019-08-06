@@ -26,6 +26,7 @@ pub mod cgl;
 
 use cstruct::*;
 use std::time;
+use std::collections::VecDeque;
 
 ///////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////// E V E N T S ////////////////////////////////////
@@ -586,7 +587,45 @@ pub fn glutin_destroy_events_loop(_ptr: *mut EventLoop<()>) {
 pub struct GlutinEventLoopCallback {
     is_valid: bool,
     is_running: bool,
-    callback: extern fn(*mut GlutinEvent, *const EventLoopWindowTarget<()>) -> GlutinControlFlow
+    callback: extern fn(*mut GlutinEvent, *const EventLoopWindowTarget<()>) -> GlutinControlFlow,
+    window_commands: *mut VecDeque<GlutinWindowCommand>
+}
+
+#[derive(Debug)]
+pub enum GlutinWindowCommand {
+    Split {
+        windowed_context: WindowedContext<PossiblyCurrent>
+    },
+    Drop {
+        window: Window
+    }
+}
+
+pub fn glutin_events_loop_process_window_commands(queue: &mut VecDeque<GlutinWindowCommand>, counter: u32) -> u32 {
+    if queue.is_empty() {
+        return 0;
+    }
+
+    if counter > 0 {
+        return counter - 1;
+    }
+
+    let command = queue.pop_front().unwrap();
+
+    match command {
+        GlutinWindowCommand::Split { windowed_context} => {
+            windowed_context.window().set_visible(true);
+            let (context, window) = unsafe { windowed_context.split() };
+            drop(context);
+            queue.push_front(GlutinWindowCommand::Drop {window});
+            return 2;
+        },
+        GlutinWindowCommand::Drop {window} => {
+            window.set_visible(true);
+            drop(window);
+            return 2;
+        }
+    }
 }
 
 #[no_mangle]
@@ -603,8 +642,10 @@ pub fn glutin_events_loop_run_forever(_ptr_events_loop: *mut EventLoop<()>, _ptr
 
     let events_loop = CBox::from_raw(_ptr_events_loop);
     let events_loop_callback: &mut GlutinEventLoopCallback = to_rust_reference!(_ptr_events_loop_callback);
+    let mut counter: u32 = 0;
 
     events_loop_callback.is_running = true;
+    events_loop_callback.window_commands = CBox::into_raw(VecDeque::new());
 
     events_loop.run(move |event, _events_loop: &EventLoopWindowTarget<()>, control_flow: &mut ControlFlow| {
 		*control_flow = ControlFlow::Poll;
@@ -615,14 +656,39 @@ pub fn glutin_events_loop_run_forever(_ptr_events_loop: *mut EventLoop<()>, _ptr
                 let callback = events_loop_callback.callback;
                 let _ptr_event_events_loop: *const EventLoopWindowTarget<()> = _events_loop as *const EventLoopWindowTarget<()>;
                 let c_control_flow = callback(&mut c_event, _ptr_event_events_loop);
+
+                let mut must_be_poll = false;
+
+                CBox::with_raw(events_loop_callback.window_commands, |commands| {
+                     if c_event.event_type == GlutinEventType::NewEvents {
+                         counter = glutin_events_loop_process_window_commands(commands, counter);
+                     }
+                    if counter > 0 || !commands.is_empty() {
+                        must_be_poll = true;
+                    }
+                });
+
                 match c_control_flow {
                     GlutinControlFlow::Poll => { *control_flow = ControlFlow::Poll },
-                    GlutinControlFlow::Wait => { *control_flow = ControlFlow::WaitUntil(time::Instant::now() + time::Duration::new(0, 50 * 1000000)) },
+                    GlutinControlFlow::Wait => { if !must_be_poll {
+                        *control_flow = ControlFlow::WaitUntil(time::Instant::now() + time::Duration::new(0, 50 * 1000000))
+                    } else {
+                        *control_flow = ControlFlow::Poll
+                    }},
                     GlutinControlFlow::Exit => { *control_flow = ControlFlow::Exit }
                 }
             }
         };
 	});
+}
+
+#[no_mangle]
+pub fn glutin_events_loop_run_forever_destroy_windowed_context(_ptr_windowed_context: *mut WindowedContext<PossiblyCurrent>, _ptr_events_loop_callback: *mut GlutinEventLoopCallback) {
+    CBox::with_raw(_ptr_events_loop_callback, |loop_callback| {
+        CBox::with_raw(loop_callback.window_commands, | commands | {
+            commands.push_back(GlutinWindowCommand::Split {windowed_context: *CBox::from_raw(_ptr_windowed_context)});
+        })
+    })
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////
@@ -828,11 +894,16 @@ pub fn glutin_destroy_context_builder(_ptr: *mut ContextBuilder<PossiblyCurrent>
 
 #[no_mangle]
 pub fn glutin_create_windowed_context_test() {
+    main();
+}
+
+fn main() {
     let el = EventLoop::new();
 
     let mut windows = std::collections::HashMap::new();
+    let mut simple_windows = std::collections::HashMap::new();
 
-    for index in 0..1 {
+    for index in 0..3 {
         let title = format!("Charming Window #{}", index + 1);
         let wb = WindowBuilder::new().with_title(title);
         let windowed_context =
@@ -846,54 +917,109 @@ pub fn glutin_create_windowed_context_test() {
     let mut window_to_close = unsafe { WindowId::dummy() };
     let mut wants_to_close_window = false;
     let mut wants_to_open_window = false;
+    let mut do_not_open_new_window= true;
     let mut frames_to_skip_before_opening = 20;
+    let mut frames_to_skip_before_closing = 20;
 
     el.run(move |event, _event_loop: &EventLoopWindowTarget<()>, control_flow| {
+        println!("{:?}", event);
         match event {
             Event::LoopDestroyed => return,
-            Event::EventsCleared => {
+            Event::NewEvents(_) => {
                 if wants_to_open_window {
                     frames_to_skip_before_opening -= 1;
                     if frames_to_skip_before_opening <= 0 {
                         wants_to_open_window = false;
+                        do_not_open_new_window = true;
                         let _el: &EventLoop<()> = unsafe { transmute(_event_loop) };
                         let wb = WindowBuilder::new().with_title("New Window");
-                        let windowed_context = ContextBuilder::new().build_windowed(wb, _el).unwrap();
+                        let windowed_context: WindowedContext<NotCurrent> = ContextBuilder::new().build_windowed(wb, _el).unwrap();
                         let new_window_id = windowed_context.window().id();
                         windows.insert(new_window_id, windowed_context);
                     }
                 }
 
                 if wants_to_close_window {
-                    wants_to_close_window = false;
-                    wants_to_open_window = true;
-                    frames_to_skip_before_opening = 2;
-                    windows.remove(&window_to_close);
-                    println!(
-                        "Window with ID {:?} has been closed",
-                        window_to_close
-                    );
+                    frames_to_skip_before_closing -= 1;
+                    if frames_to_skip_before_closing <= 0 {
+                        wants_to_close_window = false;
+                        wants_to_open_window = !do_not_open_new_window;
+                        frames_to_skip_before_opening = 2;
+
+
+                        if simple_windows.contains_key(&window_to_close) {
+                            let simple_window = simple_windows.remove(&window_to_close).unwrap();
+
+                             drop(simple_window);
+
+                            println!(
+                                "Window context with ID {:?} has been closed",
+                                window_to_close
+                            );
+                        }
+
+                        if windows.contains_key(&window_to_close) {
+                            let window = windows.remove(&window_to_close).unwrap();
+
+                            //let window = unsafe { window.make_current().unwrap() };
+                            //window.swap_buffers();
+
+                            window.window().set_visible(true);
+                            //window.window().set_always_on_top(true);
+
+                            println!("is current: {:?}", window.is_current());
+
+                           let (context, simple_window) = unsafe { window.split() };
+
+                            drop(context);
+
+                            simple_windows.insert(window_to_close.clone(), simple_window);
+
+                            println!(
+                                "Window context with ID {:?} has been closed",
+                                window_to_close
+                            );
+
+                            wants_to_close_window = true;
+                            frames_to_skip_before_closing = 2;
+                            window_to_close = window_to_close.clone();
+                        }
+
+                        // drop window here
+                    }
                 }
             }
             Event::WindowEvent { event, window_id } => {
                 match event {
                     WindowEvent::CloseRequested => {
-                        windows.remove(&window_id);
-                        println!(
-                            "Window with ID {:?} has been closed",
-                            window_id
-                        );
+//                        wants_to_close_window = true;
+//                        do_not_open_new_window = true;
+//                        frames_to_skip_before_closing = 20;
+//                        window_to_close = window_id.clone();
+
+                        let window = windows.remove(&window_id).unwrap();
+                        window.window().set_visible(true);
+
+                        let (context, simple_window) = unsafe { window.split() };
+
+                        drop(context);
+
+                        simple_window.set_visible(true);
+
+
                     }
                     WindowEvent::ReceivedCharacter { .. } => {
                         wants_to_close_window = true;
-                        window_to_close = window_id;
+                        do_not_open_new_window = false;
+                        frames_to_skip_before_closing = 20;
+                        window_to_close = window_id.clone();
                     }
                     _ => (),
                 }
             }
             _ => (),
         }
-        *control_flow = ControlFlow::Poll
+        *control_flow = ControlFlow::WaitUntil(time::Instant::now() + time::Duration::new(0, 50 * 1000000));
     });
 }
 
