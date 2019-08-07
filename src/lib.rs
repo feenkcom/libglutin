@@ -1029,28 +1029,25 @@ pub fn glutin_create_windowed_context(
         _ptr_window_builder: *mut WindowBuilder,
         _ptr_context_builder: *mut ContextBuilder<NotCurrent>) -> *mut WindowedContext<NotCurrent> {
 
-    let events_loop: &mut EventLoop<()> = to_rust_reference!(_ptr_events_loop);
-    let window_builder = to_rust_reference!(_ptr_window_builder);
-    let context_builder = to_rust_reference!(_ptr_context_builder);
+    CBox::with_three_raw(_ptr_events_loop,_ptr_window_builder, _ptr_context_builder, |events_loop, window_builder, context_builder| {
+        let mut new_window_builder = WindowBuilder::new();
+        new_window_builder.clone_from(window_builder);
 
-    let mut new_window_builder = WindowBuilder::new();
-    new_window_builder.clone_from(window_builder);
+        let mut new_context_builder = ContextBuilder::new();
+        new_context_builder.gl_attr.clone_from(&context_builder.gl_attr);
+        new_context_builder.pf_reqs.clone_from(&context_builder.pf_reqs);
 
-    let mut new_context_builder = ContextBuilder::new();
-    new_context_builder.gl_attr.clone_from(&context_builder.gl_attr);
-    new_context_builder.pf_reqs.clone_from(&context_builder.pf_reqs);
+        println!("[Glutin] OpenGL Context: {:?}", new_context_builder);
+        println!("[Glutin] Primary monitor: {:?}", events_loop.primary_monitor());
 
-    println!("{:?}", new_context_builder);
-
-    match new_context_builder.build_windowed(new_window_builder, events_loop) {
-        Ok(context) => {
-            let _ptr_windowed_context = for_create!(context);
-            _ptr_windowed_context },
-        Err(err) => {
-            eprintln!("Error in create_windowed_context: {:?}", err);
-            std::ptr::null_mut()
+        match new_context_builder.build_windowed(new_window_builder, events_loop) {
+            Ok(context) => CBox::into_raw(context),
+            Err(err) => {
+                eprintln!("Error in create_windowed_context: {:?}", err);
+                std::ptr::null_mut()
+            }
         }
-    }
+    })
 }
 
 #[no_mangle]
