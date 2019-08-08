@@ -1029,6 +1029,21 @@ pub fn glutin_create_windowed_context(
         _ptr_window_builder: *mut WindowBuilder,
         _ptr_context_builder: *mut ContextBuilder<NotCurrent>) -> *mut WindowedContext<NotCurrent> {
 
+    if _ptr_events_loop.is_null() {
+        eprintln!("[glutin_create_windowed_context] Event loop is null");
+        return std::ptr::null_mut();
+    }
+
+    if _ptr_window_builder.is_null() {
+        eprintln!("[glutin_create_windowed_context] Window builder is null");
+        return std::ptr::null_mut();
+    }
+
+    if _ptr_context_builder.is_null() {
+        eprintln!("[glutin_create_windowed_context] Context builder is null");
+        return std::ptr::null_mut();
+    }
+
     CBox::with_three_raw(_ptr_events_loop,_ptr_window_builder, _ptr_context_builder, |events_loop, window_builder, context_builder| {
         let mut new_window_builder = WindowBuilder::new();
         new_window_builder.clone_from(window_builder);
