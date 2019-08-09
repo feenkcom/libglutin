@@ -618,12 +618,12 @@ pub fn glutin_events_loop_process_window_commands(queue: &mut VecDeque<GlutinWin
             let (context, window) = unsafe { windowed_context.split() };
             drop(context);
             queue.push_front(GlutinWindowCommand::Drop {window});
-            return 2;
+            return 5;
         },
         GlutinWindowCommand::Drop {window} => {
             window.set_visible(true);
             drop(window);
-            return 2;
+            return 5;
         }
     }
 }
@@ -675,7 +675,7 @@ pub fn glutin_events_loop_run_forever(_ptr_events_loop: *mut EventLoop<()>, _ptr
                     } else {
                         *control_flow = ControlFlow::Poll
                     }},
-                    GlutinControlFlow::Exit => { *control_flow = ControlFlow::Exit }
+                    GlutinControlFlow::Exit => { *control_flow = ControlFlow::Poll }
                 }
             }
         };
