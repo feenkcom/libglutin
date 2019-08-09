@@ -684,6 +684,16 @@ pub fn glutin_events_loop_run_forever(_ptr_events_loop: *mut EventLoop<()>, _ptr
 
 #[no_mangle]
 pub fn glutin_events_loop_run_forever_destroy_windowed_context(_ptr_windowed_context: *mut WindowedContext<PossiblyCurrent>, _ptr_events_loop_callback: *mut GlutinEventLoopCallback) {
+    // the window is already destroyed, we do nothing
+    if _ptr_windowed_context.is_null() {
+        return;
+    }
+
+    if _ptr_events_loop_callback.is_null() {
+        eprintln!("[glutin_events_loop_run_forever_destroy_windowed_context] Event loop is null");
+        return;
+    }
+
     CBox::with_raw(_ptr_events_loop_callback, |loop_callback| {
         CBox::with_raw(loop_callback.window_commands, | commands | {
             commands.push_back(GlutinWindowCommand::Split {windowed_context: *CBox::from_raw(_ptr_windowed_context)});
