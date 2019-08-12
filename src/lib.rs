@@ -618,12 +618,12 @@ pub fn glutin_events_loop_process_window_commands(queue: &mut VecDeque<GlutinWin
             let (context, window) = unsafe { windowed_context.split() };
             drop(context);
             queue.push_front(GlutinWindowCommand::Drop {window});
-            return 5;
+            return 16;
         },
         GlutinWindowCommand::Drop {window} => {
             window.set_visible(true);
             drop(window);
-            return 5;
+            return 16;
         }
     }
 }
