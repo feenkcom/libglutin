@@ -23,10 +23,12 @@ mod cmacro;
 
 pub mod cstruct;
 pub mod cgl;
+pub mod cenum;
 
 use cstruct::*;
 use std::time;
 use std::collections::VecDeque;
+use cenum::GlutinCursorIcon;
 
 ///////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////// E V E N T S ////////////////////////////////////
@@ -334,7 +336,7 @@ fn glutin_events_loop_process_event(global_event: glutin::event::Event<()>, c_ev
                 WindowEvent::RedrawRequested => {
                     c_event.event_type = GlutinEventType::WindowEventRedrawRequested;
                 },
-                WindowEvent::Touch(Touch {device_id, phase, location, id}) => {
+                WindowEvent::Touch(Touch {device_id, phase, location, force: _, id}) => {
                     glutin_event_loop_process_touch(c_event, device_id, phase, location, id);
                 },
                 WindowEvent::MouseInput{ device_id, state, button, modifiers } => {
@@ -903,137 +905,6 @@ pub fn glutin_destroy_context_builder(_ptr: *mut ContextBuilder<PossiblyCurrent>
 ///////////////////////////////////////////////////////////////////////////////////////
 
 #[no_mangle]
-pub fn glutin_create_windowed_context_test() {
-    main();
-}
-
-fn main() {
-    let el = EventLoop::new();
-
-    let mut windows = std::collections::HashMap::new();
-    let mut simple_windows = std::collections::HashMap::new();
-
-    for index in 0..3 {
-        let title = format!("Charming Window #{}", index + 1);
-        let wb = WindowBuilder::new().with_title(title);
-        let windowed_context =
-            ContextBuilder::new().build_windowed(wb, &el).unwrap();
-
-        let window_id = windowed_context.window().id();
-
-        windows.insert(window_id, windowed_context);
-    }
-
-    let mut window_to_close = unsafe { WindowId::dummy() };
-    let mut wants_to_close_window = false;
-    let mut wants_to_open_window = false;
-    let mut do_not_open_new_window= true;
-    let mut frames_to_skip_before_opening = 20;
-    let mut frames_to_skip_before_closing = 20;
-
-    el.run(move |event, _event_loop: &EventLoopWindowTarget<()>, control_flow| {
-        println!("{:?}", event);
-        match event {
-            Event::LoopDestroyed => return,
-            Event::NewEvents(_) => {
-                if wants_to_open_window {
-                    frames_to_skip_before_opening -= 1;
-                    if frames_to_skip_before_opening <= 0 {
-                        wants_to_open_window = false;
-                        do_not_open_new_window = true;
-                        let _el: &EventLoop<()> = unsafe { transmute(_event_loop) };
-                        let wb = WindowBuilder::new().with_title("New Window");
-                        let windowed_context: WindowedContext<NotCurrent> = ContextBuilder::new().build_windowed(wb, _el).unwrap();
-                        let new_window_id = windowed_context.window().id();
-                        windows.insert(new_window_id, windowed_context);
-                    }
-                }
-
-                if wants_to_close_window {
-                    frames_to_skip_before_closing -= 1;
-                    if frames_to_skip_before_closing <= 0 {
-                        wants_to_close_window = false;
-                        wants_to_open_window = !do_not_open_new_window;
-                        frames_to_skip_before_opening = 2;
-
-
-                        if simple_windows.contains_key(&window_to_close) {
-                            let simple_window = simple_windows.remove(&window_to_close).unwrap();
-
-                             drop(simple_window);
-
-                            println!(
-                                "Window context with ID {:?} has been closed",
-                                window_to_close
-                            );
-                        }
-
-                        if windows.contains_key(&window_to_close) {
-                            let window = windows.remove(&window_to_close).unwrap();
-
-                            //let window = unsafe { window.make_current().unwrap() };
-                            //window.swap_buffers();
-
-                            window.window().set_visible(true);
-                            //window.window().set_always_on_top(true);
-
-                            println!("is current: {:?}", window.is_current());
-
-                           let (context, simple_window) = unsafe { window.split() };
-
-                            drop(context);
-
-                            simple_windows.insert(window_to_close.clone(), simple_window);
-
-                            println!(
-                                "Window context with ID {:?} has been closed",
-                                window_to_close
-                            );
-
-                            wants_to_close_window = true;
-                            frames_to_skip_before_closing = 2;
-                            window_to_close = window_to_close.clone();
-                        }
-
-                        // drop window here
-                    }
-                }
-            }
-            Event::WindowEvent { event, window_id } => {
-                match event {
-                    WindowEvent::CloseRequested => {
-//                        wants_to_close_window = true;
-//                        do_not_open_new_window = true;
-//                        frames_to_skip_before_closing = 20;
-//                        window_to_close = window_id.clone();
-
-                        let window = windows.remove(&window_id).unwrap();
-                        window.window().set_visible(true);
-
-                        let (context, simple_window) = unsafe { window.split() };
-
-                        drop(context);
-
-                        simple_window.set_visible(true);
-
-
-                    }
-                    WindowEvent::ReceivedCharacter { .. } => {
-                        wants_to_close_window = true;
-                        do_not_open_new_window = false;
-                        frames_to_skip_before_closing = 20;
-                        window_to_close = window_id.clone();
-                    }
-                    _ => (),
-                }
-            }
-            _ => (),
-        }
-        *control_flow = ControlFlow::WaitUntil(time::Instant::now() + time::Duration::new(0, 50 * 1000000));
-    });
-}
-
-#[no_mangle]
 pub fn glutin_create_windowed_context(
         _ptr_events_loop: *mut EventLoop<()>,
         _ptr_window_builder: *mut WindowBuilder,
@@ -1246,4 +1117,11 @@ pub fn glutin_windowed_context_get_id(_ptr_window: *mut WindowedContext<Possibly
     let id: (u64, u64) = glutin_convert_window_id(window.window().id());
     size.x = id.0;
     size.y = id.1;
+}
+
+#[no_mangle]
+pub fn glutin_windowed_context_set_cursor_icon(_ptr_window: *mut WindowedContext<PossiblyCurrent>, cursor_icon: GlutinCursorIcon) {
+    CBox::with_raw(_ptr_window, |window| {
+        window.window().set_cursor_icon(cursor_icon.into());
+    })
 }
