@@ -101,4 +101,14 @@ impl CBox {
         Self::into_raw(boxed_object_3);
         result
     }
+
+    pub fn with_window_builder<F>(_ptr_window_builder: *mut WindowBuilder, block: F) -> *mut WindowBuilder where F : FnOnce(WindowBuilder) -> WindowBuilder {
+        CBox::with_raw(_ptr_window_builder, |builder| {
+            let mut window_builder_tmp = WindowBuilder::new();
+            window_builder_tmp.clone_from(builder);
+            window_builder_tmp = block(window_builder_tmp);
+            let mut _ptr_window_builder = CBox::into_raw(window_builder_tmp);
+            _ptr_window_builder
+        })
+    }
 }

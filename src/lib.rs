@@ -25,6 +25,16 @@ pub mod cstruct;
 pub mod cgl;
 pub mod cenum;
 
+#[cfg(target_os = "macos")]
+#[path = "platform/macos.rs"]
+mod ext;
+
+#[cfg(all(
+    not(target_os = "macos")
+))]
+#[path = "platform/others.rs"]
+mod ext;
+
 use cstruct::*;
 use std::time;
 use std::collections::VecDeque;
@@ -728,6 +738,7 @@ fn glutin_primary_monitor_get_hidpi_factor (_ptr_monitor_id: *mut MonitorHandle)
 //////////////////////////// W I N D O W    B U I L D E R /////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////
 
+#[macro_export]
 macro_rules! window_builder_with {
    ($name:ident.$function:ident($($variable:expr),+)) => {
         {
@@ -761,20 +772,17 @@ pub fn glutin_window_builder_with_title(_ptr_window_builder: *mut WindowBuilder,
 
 #[no_mangle]
 pub fn glutin_window_builder_with_decorations(_ptr_window_builder: *mut WindowBuilder, with_decorations: bool) -> *mut WindowBuilder {
-    let window_builder: &WindowBuilder = to_rust_reference!(_ptr_window_builder);
-    return window_builder_with!(window_builder.with_decorations(with_decorations));
+    CBox::with_window_builder(_ptr_window_builder, |builder| builder.with_decorations(with_decorations))
 }
 
 #[no_mangle]
 pub fn glutin_window_builder_with_transparency(_ptr_window_builder: *mut WindowBuilder, with_transparency: bool) -> *mut WindowBuilder {
-    let window_builder: &WindowBuilder = to_rust_reference!(_ptr_window_builder);
-    return window_builder_with!(window_builder.with_transparent(with_transparency));
+    CBox::with_window_builder(_ptr_window_builder, |builder| builder.with_transparent(with_transparency))
 }
 
 #[no_mangle]
 pub fn glutin_window_builder_with_resizable(_ptr_window_builder: *mut WindowBuilder, with_resizable: bool) -> *mut WindowBuilder {
-    let window_builder: &WindowBuilder = to_rust_reference!(_ptr_window_builder);
-    return window_builder_with!(window_builder.with_resizable(with_resizable));
+    CBox::with_window_builder(_ptr_window_builder, |builder| builder.with_resizable(with_resizable))
 }
 
 #[no_mangle]
@@ -1031,9 +1039,18 @@ pub fn glutin_windowed_context_get_proc_address(_ptr_window: *mut WindowedContex
 
 #[no_mangle]
 pub fn glutin_windowed_context_get_framebuffer_size(_ptr_window: *mut WindowedContext<PossiblyCurrent>, _ptr_size: *mut GlutinSizeU32) {
+    let size: &mut GlutinSizeU32 = to_rust_reference!(_ptr_size);
+
+    if _ptr_window.is_null() {
+        CBox::with_raw(_ptr_size, |size| {
+            size.x = 0;
+            size.y = 0;
+        });
+        return;
+    }
+
     let window: &WindowedContext<PossiblyCurrent> = to_rust_reference!(_ptr_window);
 
-    let size: &mut GlutinSizeU32 = to_rust_reference!(_ptr_size);
     let device_pixel_ratio = window.window().hidpi_factor() as f32;
 
     let window_size = window.window()
@@ -1046,8 +1063,17 @@ pub fn glutin_windowed_context_get_framebuffer_size(_ptr_window: *mut WindowedCo
 
 #[no_mangle]
 pub fn glutin_windowed_context_get_inner_size(_ptr_window: *mut WindowedContext<PossiblyCurrent>, _ptr_size: *mut GlutinSizeF64) {
-    let window: &WindowedContext<PossiblyCurrent> = to_rust_reference!(_ptr_window);
     let size: &mut GlutinSizeF64 = to_rust_reference!(_ptr_size);
+
+    if _ptr_window.is_null() {
+       CBox::with_raw(_ptr_size, |size| {
+            size.x = 0.0;
+            size.y = 0.0;
+        });
+        return;
+    }
+
+    let window: &WindowedContext<PossiblyCurrent> = to_rust_reference!(_ptr_window);
 
     let window_size = window.window()
         .inner_size();
@@ -1058,6 +1084,14 @@ pub fn glutin_windowed_context_get_inner_size(_ptr_window: *mut WindowedContext<
 
 #[no_mangle]
 pub fn glutin_windowed_context_get_position(_ptr_window: *mut WindowedContext<PossiblyCurrent>, _ptr_position: *mut GlutinSizeF64) {
+    if _ptr_window.is_null() {
+        CBox::with_raw(_ptr_position, |size| {
+            size.x = 0.0;
+            size.y = 0.0;
+        });
+        return;
+    }
+
     CBox::with_two_raw(_ptr_window, _ptr_position, |window, size | {
         match window.window().outer_position() {
             Ok(_logical_position) => {
