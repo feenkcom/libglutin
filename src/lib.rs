@@ -4,7 +4,7 @@ extern crate glutin;
 extern crate libc;
 extern crate gleam;
 
-use libc::{c_char};
+use std::os::raw::c_char;
 use std::ffi::CStr;
 use std::mem::transmute;
 use std::mem::transmute_copy;
