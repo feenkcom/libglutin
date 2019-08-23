@@ -117,12 +117,14 @@ impl CBox {
     }
 
     pub fn with_window_builder<F>(_ptr_window_builder: *mut WindowBuilder, block: F) -> *mut WindowBuilder where F : FnOnce(WindowBuilder) -> WindowBuilder {
-        CBox::with_raw(_ptr_window_builder, |builder| {
-            let mut window_builder_tmp = WindowBuilder::new();
-            window_builder_tmp.clone_from(builder);
-            window_builder_tmp = block(window_builder_tmp);
-            let mut _ptr_window_builder = CBox::into_raw(window_builder_tmp);
-            _ptr_window_builder
-        })
+        let builder = *CBox::from_raw(_ptr_window_builder);
+        let modified_window_builder = block(builder);
+        CBox::into_raw(modified_window_builder)
+    }
+
+    pub fn with_context_builder<F>(_ptr_context_builder: *mut ContextBuilder<'static,NotCurrent>, block: F) -> *mut ContextBuilder<'static,NotCurrent> where F : FnOnce(ContextBuilder<'static,NotCurrent>) -> ContextBuilder<'static,NotCurrent> {
+        let builder = *CBox::from_raw(_ptr_context_builder);
+        let modified_context_builder = block(builder);
+        CBox::into_raw(modified_context_builder)
     }
 }

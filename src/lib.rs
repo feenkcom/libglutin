@@ -738,23 +738,9 @@ fn glutin_primary_monitor_get_hidpi_factor (_ptr_monitor_id: *mut MonitorHandle)
 //////////////////////////// W I N D O W    B U I L D E R /////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////
 
-#[macro_export]
-macro_rules! window_builder_with {
-   ($name:ident.$function:ident($($variable:expr),+)) => {
-        {
-            let mut window_builder_tmp = WindowBuilder::new();
-            window_builder_tmp.clone_from($name);
-            window_builder_tmp = window_builder_tmp.$function($($variable),+);
-            let mut _ptr_window_builder = for_create!(window_builder_tmp);
-            _ptr_window_builder
-        }
-    };
-}
-
 #[no_mangle]
 pub fn glutin_create_window_builder() -> *mut WindowBuilder {
-    let _ptr_window_builder = for_create!(WindowBuilder::new());
-    _ptr_window_builder
+    CBox::into_raw(WindowBuilder::new())
 }
 
 #[no_mangle]
@@ -786,119 +772,92 @@ pub fn glutin_window_builder_with_resizable(_ptr_window_builder: *mut WindowBuil
 
 #[no_mangle]
 pub fn glutin_window_builder_with_dimensions(_ptr_window_builder: *mut WindowBuilder, width: f64, height: f64) -> *mut WindowBuilder {
-    let window_builder: &WindowBuilder = to_rust_reference!(_ptr_window_builder);
-    return window_builder_with!(window_builder.with_inner_size(LogicalSize::new(width, height)));
+    CBox::with_window_builder(_ptr_window_builder, |builder| builder.with_inner_size(LogicalSize::new(width, height)))
 }
 
 #[no_mangle]
 pub fn glutin_window_builder_with_maximized(_ptr_window_builder: *mut WindowBuilder, with_maximized: bool) -> *mut WindowBuilder {
-    let window_builder: &WindowBuilder = to_rust_reference!(_ptr_window_builder);
-    return window_builder_with!(window_builder.with_maximized(with_maximized));
+    CBox::with_window_builder(_ptr_window_builder, |builder| builder.with_maximized(with_maximized))
 }
 
 #[no_mangle]
 pub fn glutin_window_builder_with_visibility(_ptr_window_builder: *mut WindowBuilder, with_visibility: bool) -> *mut WindowBuilder {
-    let window_builder: &WindowBuilder = to_rust_reference!(_ptr_window_builder);
-    return window_builder_with!(window_builder.with_visible(with_visibility));
+    CBox::with_window_builder(_ptr_window_builder, |builder| builder.with_visible(with_visibility))
 }
 
 
 #[no_mangle]
 pub fn glutin_window_builder_with_always_on_top(_ptr_window_builder: *mut WindowBuilder, with_always_on_top: bool) -> *mut WindowBuilder {
-    let window_builder: &WindowBuilder = to_rust_reference!(_ptr_window_builder);
-    return window_builder_with!(window_builder.with_always_on_top(with_always_on_top));
+    CBox::with_window_builder(_ptr_window_builder, |builder| builder.with_always_on_top(with_always_on_top))
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////// C O N T E X T    B U I L D E R ////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////
 
-macro_rules! context_builder_with {
-    ($name:ident.$function:ident($($variable:expr),+)) => {
-        {
-            let mut context_builder_tmp = ContextBuilder::new();
-            context_builder_tmp.gl_attr.clone_from(&$name.gl_attr);
-            context_builder_tmp.pf_reqs.clone_from(&$name.pf_reqs);
-            context_builder_tmp = context_builder_tmp.$function($($variable),+);
-            let mut _ptr_context_builder = for_create!(context_builder_tmp);
-            _ptr_context_builder
-        }
-    };
-}
-
 #[no_mangle]
 pub fn glutin_create_context_builder() -> *mut ContextBuilder<'static, NotCurrent> {
     let context_builder = ContextBuilder::new()
         .with_gl_robustness(Robustness::TryRobustNoResetNotification)
         .with_gl_profile(GlProfile::Core);
-
-    let _ptr_context_builder = for_create!(context_builder);
-    _ptr_context_builder
+    CBox::into_raw(context_builder)
 }
 
 #[no_mangle]
-pub fn glutin_context_builder_with_gl_then_gles(_ptr_context_builder: *mut ContextBuilder<NotCurrent>, gl_major: u8, gl_minor: u8, gles_major: u8, gles_minor: u8) -> *mut ContextBuilder<'static, NotCurrent> {
-    let context_builder: &ContextBuilder<NotCurrent> = to_rust_reference!(_ptr_context_builder);
-    return context_builder_with!(context_builder.with_gl(GlRequest::GlThenGles {
-        /// The version to use for OpenGL.
-        opengl_version: (gl_major, gl_minor),
-        /// The version to use for OpenGL ES.
-        opengles_version: (gles_major, gles_minor),
-    }));
+pub fn glutin_context_builder_with_gl_then_gles(_ptr_context_builder: *mut ContextBuilder<'static, NotCurrent>, gl_major: u8, gl_minor: u8, gles_major: u8, gles_minor: u8) -> *mut ContextBuilder<'static, NotCurrent> {
+    CBox::with_context_builder(_ptr_context_builder, |builder| {
+        builder.with_gl(GlRequest::GlThenGles {
+            /// The version to use for OpenGL.
+            opengl_version: (gl_major, gl_minor),
+            /// The version to use for OpenGL ES.
+            opengles_version: (gles_major, gles_minor),
+        })
+    })
 }
 
 #[no_mangle]
-pub fn glutin_context_builder_with_gl_latest(_ptr_context_builder: *mut ContextBuilder<NotCurrent>) -> *mut ContextBuilder<'static, NotCurrent> {
-    let context_builder: &ContextBuilder<NotCurrent> = to_rust_reference!(_ptr_context_builder);
-    return context_builder_with!(context_builder.with_gl(GlRequest::Latest));
+pub fn glutin_context_builder_with_gl_latest(_ptr_context_builder: *mut ContextBuilder<'static,NotCurrent>) -> *mut ContextBuilder<'static, NotCurrent> {
+    CBox::with_context_builder(_ptr_context_builder, |builder| builder.with_gl(GlRequest::Latest))
 }
 
 #[no_mangle]
-pub fn glutin_context_builder_with_gl_profile_core(_ptr_context_builder: *mut ContextBuilder<NotCurrent>) -> *mut ContextBuilder<'static, NotCurrent> {
-    let context_builder: &ContextBuilder<NotCurrent> = to_rust_reference!(_ptr_context_builder);
-    return context_builder_with!(context_builder.with_gl_profile(GlProfile::Core));
+pub fn glutin_context_builder_with_gl_profile_core(_ptr_context_builder: *mut ContextBuilder<'static,NotCurrent>) -> *mut ContextBuilder<'static, NotCurrent> {
+    CBox::with_context_builder(_ptr_context_builder, |builder| builder.with_gl_profile(GlProfile::Core))
 }
 
 #[no_mangle]
-pub fn glutin_context_builder_with_multisampling(_ptr_context_builder: *mut ContextBuilder<NotCurrent>, samples: u16) -> *mut ContextBuilder<'static, NotCurrent> {
-    let context_builder: &ContextBuilder<NotCurrent> = to_rust_reference!(_ptr_context_builder);
-    return context_builder_with!(context_builder.with_multisampling(samples));
+pub fn glutin_context_builder_with_multisampling(_ptr_context_builder: *mut ContextBuilder<'static,NotCurrent>, samples: u16) -> *mut ContextBuilder<'static, NotCurrent> {
+    CBox::with_context_builder(_ptr_context_builder, |builder| builder.with_multisampling(samples))
 }
 
 #[no_mangle]
-pub fn glutin_context_builder_with_depth_buffer(_ptr_context_builder: *mut ContextBuilder<NotCurrent>, bits: u8) -> *mut ContextBuilder<'static, NotCurrent> {
-    let context_builder: &ContextBuilder<NotCurrent> = to_rust_reference!(_ptr_context_builder);
-    return context_builder_with!(context_builder.with_depth_buffer(bits));
+pub fn glutin_context_builder_with_depth_buffer(_ptr_context_builder: *mut ContextBuilder<'static,NotCurrent>, bits: u8) -> *mut ContextBuilder<'static, NotCurrent> {
+    CBox::with_context_builder(_ptr_context_builder, |builder| builder.with_depth_buffer(bits))
 }
 
 #[no_mangle]
-pub fn glutin_context_builder_with_stencil_buffer(_ptr_context_builder: *mut ContextBuilder<NotCurrent>, bits: u8) -> *mut ContextBuilder<'static, NotCurrent> {
-    let context_builder: &ContextBuilder<NotCurrent> = to_rust_reference!(_ptr_context_builder);
-    return context_builder_with!(context_builder.with_stencil_buffer(bits));
+pub fn glutin_context_builder_with_stencil_buffer(_ptr_context_builder: *mut ContextBuilder<'static,NotCurrent>, bits: u8) -> *mut ContextBuilder<'static, NotCurrent> {
+    CBox::with_context_builder(_ptr_context_builder, |builder| builder.with_stencil_buffer(bits))
 }
 
 #[no_mangle]
-pub fn glutin_context_builder_with_pixel_format(_ptr_context_builder: *mut ContextBuilder<NotCurrent>, color_bits: u8, alpha_bits: u8) -> *mut ContextBuilder<'static, NotCurrent> {
-    let context_builder: &ContextBuilder<NotCurrent> = to_rust_reference!(_ptr_context_builder);
-    return context_builder_with!(context_builder.with_pixel_format(color_bits, alpha_bits));
+pub fn glutin_context_builder_with_pixel_format(_ptr_context_builder: *mut ContextBuilder<'static,NotCurrent>, color_bits: u8, alpha_bits: u8) -> *mut ContextBuilder<'static, NotCurrent> {
+    CBox::with_context_builder(_ptr_context_builder, |builder| builder.with_pixel_format(color_bits, alpha_bits))
 }
 
 #[no_mangle]
-pub fn glutin_context_builder_with_vsync(_ptr_context_builder: *mut ContextBuilder<NotCurrent>, vsync: bool) -> *mut ContextBuilder<'static, NotCurrent> {
-    let context_builder: &ContextBuilder<NotCurrent> = to_rust_reference!(_ptr_context_builder);
-    return context_builder_with!(context_builder.with_vsync(vsync));
+pub fn glutin_context_builder_with_vsync(_ptr_context_builder: *mut ContextBuilder<'static,NotCurrent>, vsync: bool) -> *mut ContextBuilder<'static, NotCurrent> {
+    CBox::with_context_builder(_ptr_context_builder, |builder| builder.with_vsync(vsync))
 }
 
 #[no_mangle]
-pub fn glutin_context_builder_with_srgb(_ptr_context_builder: *mut ContextBuilder<NotCurrent>, srgb_enabled: bool) -> *mut ContextBuilder<'static, NotCurrent> {
-    let context_builder: &ContextBuilder<NotCurrent> = to_rust_reference!(_ptr_context_builder);
-    return context_builder_with!(context_builder.with_srgb(srgb_enabled));
+pub fn glutin_context_builder_with_srgb(_ptr_context_builder: *mut ContextBuilder<'static,NotCurrent>, srgb_enabled: bool) -> *mut ContextBuilder<'static, NotCurrent> {
+    CBox::with_context_builder(_ptr_context_builder, |builder| builder.with_srgb(srgb_enabled))
 }
 
 #[no_mangle]
-pub fn glutin_context_builder_with_double_buffer(_ptr_context_builder: *mut ContextBuilder<NotCurrent>, double_buffer_enabled: bool) -> *mut ContextBuilder<'static, NotCurrent> {
-    let context_builder: &ContextBuilder<NotCurrent> = to_rust_reference!(_ptr_context_builder);
-    return context_builder_with!(context_builder.with_double_buffer(Some(double_buffer_enabled)));
+pub fn glutin_context_builder_with_double_buffer(_ptr_context_builder: *mut ContextBuilder<'static,NotCurrent>, double_buffer_enabled: bool) -> *mut ContextBuilder<'static, NotCurrent> {
+    CBox::with_context_builder(_ptr_context_builder, |builder| builder.with_double_buffer(Some(double_buffer_enabled)))
 }
 
 #[no_mangle]
@@ -941,6 +900,8 @@ pub fn glutin_create_windowed_context(
 
         println!("[Glutin] OpenGL Context: {:?}", new_context_builder);
         println!("[Glutin] Primary monitor: {:?}", events_loop.primary_monitor());
+        println!("[Glutin] Window attributes: {:?}", new_window_builder);
+
 
         match new_context_builder.build_windowed(new_window_builder, events_loop) {
             Ok(context) => CBox::into_raw(context),
