@@ -65,6 +65,13 @@ impl CBox {
         unsafe { Box::from_raw(pointer) }
     }
 
+    pub fn drop<T>(pointer: *mut T) {
+        if pointer.is_null() {
+            return;
+        }
+        CBox::from_raw(pointer);
+    }
+
     pub fn to_string(_ptr_chars: *const c_char) -> String {
         let title_string = unsafe {
             CStr::from_ptr(_ptr_chars).to_string_lossy().into_owned()

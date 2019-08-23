@@ -726,7 +726,7 @@ fn glutin_events_loop_get_primary_monitor(_ptr_event_loop: *mut EventLoop<()>) -
 
 #[no_mangle]
 fn glutin_primary_monitor_free (_ptr_monitor_id: *mut MonitorHandle) {
-    CBox::from_raw(_ptr_monitor_id);
+    CBox::drop(_ptr_monitor_id);
 }
 
 #[no_mangle]
@@ -759,8 +759,7 @@ pub fn glutin_create_window_builder() -> *mut WindowBuilder {
 
 #[no_mangle]
 pub fn glutin_destroy_window_builder(_ptr: *mut WindowBuilder) {
-    let _window_builder: Box<WindowBuilder> = for_delete!(_ptr);
-    // Drop
+    CBox::drop(_ptr);
 }
 
 #[no_mangle]
@@ -904,8 +903,7 @@ pub fn glutin_context_builder_with_double_buffer(_ptr_context_builder: *mut Cont
 
 #[no_mangle]
 pub fn glutin_destroy_context_builder(_ptr: *mut ContextBuilder<PossiblyCurrent>) {
-    let _context_builder: Box<ContextBuilder<PossiblyCurrent>> = for_delete!(_ptr);
-    // Drop
+    CBox::drop(_ptr);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////
