@@ -65,6 +65,13 @@ impl CBox {
         unsafe { Box::from_raw(pointer) }
     }
 
+    pub fn to_string(_ptr_chars: *const c_char) -> String {
+        let title_string = unsafe {
+            CStr::from_ptr(_ptr_chars).to_string_lossy().into_owned()
+        };
+        title_string
+    }
+
     pub fn with_raw<F, R, T>(pointer: *mut T, block: F) -> R where F : FnOnce(&mut Box<T>) -> R {
         assert_eq!(pointer.is_null(), false, "CBox::with_raw(): Pointer must not be null!");
 

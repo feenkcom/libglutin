@@ -765,9 +765,9 @@ pub fn glutin_destroy_window_builder(_ptr: *mut WindowBuilder) {
 
 #[no_mangle]
 pub fn glutin_window_builder_with_title(_ptr_window_builder: *mut WindowBuilder, _ptr_title: *const c_char) -> *mut WindowBuilder {
-    let window_builder: &mut WindowBuilder = to_rust_reference!(_ptr_window_builder);
-    let title = to_rust_string!(_ptr_title);
-    return window_builder_with!(window_builder.with_title(title));
+    CBox::with_window_builder(_ptr_window_builder, |builder| {
+        builder.with_title(CBox::to_string(_ptr_title))
+    })
 }
 
 #[no_mangle]
@@ -1031,10 +1031,9 @@ pub fn glutin_windowed_context_is_current(_ptr_window: *mut WindowedContext<Poss
 
 #[no_mangle]
 pub fn glutin_windowed_context_get_proc_address(_ptr_window: *mut WindowedContext<PossiblyCurrent>, _ptr_proc_name: *const c_char) -> *const () {
-    let window: &WindowedContext<PossiblyCurrent> = to_rust_reference!(_ptr_window);
-    let proc_name = to_rust_string!(_ptr_proc_name);
-    let address = window.get_proc_address(proc_name);
-    address
+    CBox::with_raw(_ptr_window, |window| {
+        window.get_proc_address(&CBox::to_string(_ptr_proc_name))
+    })
 }
 
 #[no_mangle]
@@ -1116,9 +1115,12 @@ pub fn glutin_windowed_context_set_position(_ptr_window: *mut WindowedContext<Po
 
 #[no_mangle]
 pub fn glutin_windowed_context_set_title(_ptr_window: *mut WindowedContext<PossiblyCurrent>, _ptr_title: *const c_char) {
-    let window: &WindowedContext<PossiblyCurrent> = to_rust_reference!(_ptr_window);
-    let title = to_rust_string!(_ptr_title);
-    window.window().set_title(title);
+    if _ptr_window.is_null() {
+        return;
+    }
+    CBox::with_raw(_ptr_window, |window| {
+        window.window().set_title(&CBox::to_string(_ptr_title))
+    });
 }
 
 #[no_mangle]
