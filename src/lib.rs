@@ -890,20 +890,15 @@ pub fn glutin_create_windowed_context(
         return std::ptr::null_mut();
     }
 
-    CBox::with_three_raw(_ptr_events_loop,_ptr_window_builder, _ptr_context_builder, |events_loop, window_builder, context_builder| {
-        let mut new_window_builder = WindowBuilder::new();
-        new_window_builder.clone_from(window_builder);
+    CBox::with_raw(_ptr_events_loop, |events_loop| {
+        let window_builder = *CBox::from_raw(_ptr_window_builder);
+        let context_builder= *CBox::from_raw(_ptr_context_builder);
 
-        let mut new_context_builder = ContextBuilder::new();
-        new_context_builder.gl_attr.clone_from(&context_builder.gl_attr);
-        new_context_builder.pf_reqs.clone_from(&context_builder.pf_reqs);
-
-        println!("[Glutin] OpenGL Context: {:?}", new_context_builder);
+        println!("[Glutin] OpenGL Context: {:?}", context_builder);
         println!("[Glutin] Primary monitor: {:?}", events_loop.primary_monitor());
-        println!("[Glutin] Window attributes: {:?}", new_window_builder);
+        println!("[Glutin] Window attributes: {:?}", window_builder);
 
-
-        match new_context_builder.build_windowed(new_window_builder, events_loop) {
+        match context_builder.build_windowed(window_builder, events_loop) {
             Ok(context) => CBox::into_raw(context),
             Err(err) => {
                 eprintln!("Error in create_windowed_context: {:?}", err);
