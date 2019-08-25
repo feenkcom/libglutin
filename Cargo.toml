@@ -8,6 +8,9 @@ glutin = "0.22.0-alpha3"
 gleam = "0.6.19"
 libc = "0.2.62"
 
+[patch.crates-io]
+winit = { git = "https://github.com/rust-windowing/winit.git" }
+
 [lib]
 name = "Glutin"
 crate-type = ["cdylib"]

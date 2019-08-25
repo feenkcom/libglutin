@@ -39,6 +39,7 @@ use cstruct::*;
 use std::time;
 use std::collections::VecDeque;
 use cenum::GlutinCursorIcon;
+use glutin::platform::desktop::EventLoopExtDesktop;
 
 ///////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////// E V E N T S ////////////////////////////////////
@@ -692,6 +693,62 @@ pub fn glutin_events_loop_run_forever(_ptr_events_loop: *mut EventLoop<()>, _ptr
             }
         };
 	});
+}
+
+#[no_mangle]
+pub fn glutin_events_loop_run_return(_ptr_events_loop: *mut EventLoop<()>, _ptr_events_loop_callback: *mut GlutinEventLoopCallback) {
+    if _ptr_events_loop.is_null() {
+        eprintln!("[glutin_events_loop_run_forever] _ptr_events_loop is null");
+        return;
+    }
+
+    if _ptr_events_loop_callback.is_null() {
+        eprintln!("[glutin_events_loop_run_forever] _ptr_events_loop_callback is null");
+        return;
+    }
+
+    CBox::with_two_raw(_ptr_events_loop, _ptr_events_loop_callback, |events_loop, events_loop_callback| {
+        let mut counter: u32 = 0;
+
+        events_loop_callback.is_running = true;
+        events_loop_callback.window_commands = CBox::into_raw(VecDeque::new());
+
+        events_loop.run_return(move |event, _events_loop: &EventLoopWindowTarget<()>, control_flow: &mut ControlFlow| {
+            *control_flow = ControlFlow::Poll;
+            let mut c_event: GlutinEvent = Default::default();
+            let processed = glutin_events_loop_process_event(event, &mut c_event);
+            if processed {
+                if events_loop_callback.is_valid {
+                    let callback = events_loop_callback.callback;
+                    let _ptr_event_events_loop: *const EventLoopWindowTarget<()> = _events_loop as *const EventLoopWindowTarget<()>;
+                    let c_control_flow = callback(&mut c_event, _ptr_event_events_loop);
+
+                    let mut must_be_poll = false;
+
+                    CBox::with_raw(events_loop_callback.window_commands, |commands| {
+                        if c_event.event_type == GlutinEventType::NewEvents {
+                            counter = glutin_events_loop_process_window_commands(commands, counter);
+                        }
+                        if counter > 0 || !commands.is_empty() {
+                            must_be_poll = true;
+                        }
+                    });
+
+                    match c_control_flow {
+                        GlutinControlFlow::Poll => { *control_flow = ControlFlow::Poll }
+                        GlutinControlFlow::Wait => {
+                            if !must_be_poll {
+                                *control_flow = ControlFlow::WaitUntil(time::Instant::now() + time::Duration::new(0, 50 * 1000000))
+                            } else {
+                                *control_flow = ControlFlow::Poll
+                            }
+                        }
+                        GlutinControlFlow::Exit => { *control_flow = ControlFlow::Poll }
+                    }
+                }
+            };
+        });
+    });
 }
 
 #[no_mangle]
