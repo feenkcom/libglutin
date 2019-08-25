@@ -743,7 +743,12 @@ pub fn glutin_events_loop_run_return(_ptr_events_loop: *mut EventLoop<()>, _ptr_
                                 *control_flow = ControlFlow::Poll
                             }
                         }
-                        GlutinControlFlow::Exit => { *control_flow = ControlFlow::Poll }
+                        GlutinControlFlow::Exit => {
+                            if !must_be_poll {
+                                *control_flow = ControlFlow::Exit
+                            } else {
+                                *control_flow = ControlFlow::Poll
+                            } }
                     }
                 }
             };
