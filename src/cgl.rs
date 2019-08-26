@@ -4,7 +4,7 @@ use super::*;
 /////////////////////////////////////////  G L ////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////
 
-fn error_callback(_gl: &gleam::gl::Gl, message: &str, error: gl::GLenum) {
+fn error_callback(_gl: &dyn gleam::gl::Gl, message: &str, error: gl::GLenum) {
     println!("[GL] error: {} code: {}", message, error);
 }
 
@@ -24,7 +24,7 @@ pub fn glutin_windowed_context_load_gl(_ptr_window: *mut glutin::WindowedContext
 
     gl = gl::ErrorReactingGl::wrap(gl, error_callback);
 
-    let _mut_gl: *const gleam::gl::Gl = std::rc::Rc::into_raw(gl);
+    let _mut_gl: *const dyn gleam::gl::Gl = std::rc::Rc::into_raw(gl);
 
     let hack = GlutinGL { gl: _mut_gl };
     let _hack_ptr = for_create!(hack);

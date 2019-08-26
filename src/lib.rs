@@ -708,12 +708,9 @@ pub fn glutin_events_loop_run_return(_ptr_events_loop: *mut EventLoop<()>, _ptr_
     }
 
     CBox::with_two_raw(_ptr_events_loop, _ptr_events_loop_callback, |events_loop, events_loop_callback| {
-        let mut counter: u32 = 0;
-
         events_loop_callback.is_running = true;
-        events_loop_callback.window_commands = CBox::into_raw(VecDeque::new());
 
-        events_loop.run_return(move |event, _events_loop: &EventLoopWindowTarget<()>, control_flow: &mut ControlFlow| {
+        events_loop.run_return(|event, _events_loop: &EventLoopWindowTarget<()>, control_flow: &mut ControlFlow| {
             *control_flow = ControlFlow::Poll;
             let mut c_event: GlutinEvent = Default::default();
             let processed = glutin_events_loop_process_event(event, &mut c_event);
@@ -722,37 +719,15 @@ pub fn glutin_events_loop_run_return(_ptr_events_loop: *mut EventLoop<()>, _ptr_
                     let callback = events_loop_callback.callback;
                     let _ptr_event_events_loop: *const EventLoopWindowTarget<()> = _events_loop as *const EventLoopWindowTarget<()>;
                     let c_control_flow = callback(&mut c_event, _ptr_event_events_loop);
-
-                    let mut must_be_poll = false;
-
-                    CBox::with_raw(events_loop_callback.window_commands, |commands| {
-                        if c_event.event_type == GlutinEventType::NewEvents {
-                            counter = glutin_events_loop_process_window_commands(commands, counter);
-                        }
-                        if counter > 0 || !commands.is_empty() {
-                            must_be_poll = true;
-                        }
-                    });
-
                     match c_control_flow {
                         GlutinControlFlow::Poll => { *control_flow = ControlFlow::Poll }
-                        GlutinControlFlow::Wait => {
-                            if !must_be_poll {
-                                *control_flow = ControlFlow::WaitUntil(time::Instant::now() + time::Duration::new(0, 50 * 1000000))
-                            } else {
-                                *control_flow = ControlFlow::Poll
-                            }
-                        }
-                        GlutinControlFlow::Exit => {
-                            if !must_be_poll {
-                                *control_flow = ControlFlow::Exit
-                            } else {
-                                *control_flow = ControlFlow::Poll
-                            } }
+                        GlutinControlFlow::Wait => { *control_flow = ControlFlow::WaitUntil(time::Instant::now() + time::Duration::new(0, 50 * 1000000)) }
+                        GlutinControlFlow::Exit => { *control_flow = ControlFlow::Exit }
                     }
                 }
-            };
+            }
         });
+        events_loop_callback.is_running = false;
     });
 }
 
@@ -767,12 +742,7 @@ pub fn glutin_events_loop_run_forever_destroy_windowed_context(_ptr_windowed_con
         eprintln!("[glutin_events_loop_run_forever_destroy_windowed_context] Event loop is null");
         return;
     }
-
-    CBox::with_raw(_ptr_events_loop_callback, |loop_callback| {
-        CBox::with_raw(loop_callback.window_commands, | commands | {
-            commands.push_back(GlutinWindowCommand::Split {windowed_context: *CBox::from_raw(_ptr_windowed_context)});
-        })
-    })
+    CBox::drop(_ptr_windowed_context);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////
