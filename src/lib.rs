@@ -933,7 +933,7 @@ pub fn glutin_create_windowed_context(
         match context_builder.build_windowed(window_builder, events_loop) {
             Ok(context) => CBox::into_raw(context),
             Err(err) => {
-                eprintln!("Error in create_windowed_context: {:?}", err);
+                println!("[Glutin] Could not create context {:?}", err);
                 std::ptr::null_mut()
             }
         }
