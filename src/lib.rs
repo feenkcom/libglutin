@@ -976,7 +976,11 @@ pub fn glutin_try_headless_context(
         _ptr_events_loop: *mut EventLoop<()>,
         _ptr_context_builder: *mut ContextBuilder<NotCurrent>) -> bool {
 
-    let context = glutin_create_headless_context(_ptr_events_loop, _ptr_context_builder);
+    let builder_copy = CBox::with_raw(_ptr_context_builder, |builder| {
+        Box::into_raw(builder.clone())
+    });
+
+    let context = glutin_create_headless_context(_ptr_events_loop, builder_copy);
     return if context.is_null() {
         false
     }
