@@ -972,6 +972,22 @@ pub fn glutin_create_headless_context(
 }
 
 #[no_mangle]
+pub fn glutin_try_headless_context(
+        _ptr_events_loop: *mut EventLoop<()>,
+        _ptr_context_builder: *mut ContextBuilder<NotCurrent>) -> bool {
+
+    let context = glutin_create_headless_context(_ptr_events_loop, _ptr_context_builder);
+    return if context.is_null() {
+        false
+    }
+    else {
+        CBox::drop(context);
+        true
+    }
+
+}
+
+#[no_mangle]
 pub fn glutin_destroy_windowed_context(_ptr: *mut WindowedContext<PossiblyCurrent>) {
     let window = CBox::from_raw(_ptr);
 
