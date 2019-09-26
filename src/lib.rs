@@ -941,6 +941,37 @@ pub fn glutin_create_windowed_context(
 }
 
 #[no_mangle]
+pub fn glutin_create_headless_context(
+        _ptr_events_loop: *mut EventLoop<()>,
+        _ptr_context_builder: *mut ContextBuilder<NotCurrent>) -> *mut Context<NotCurrent> {
+
+     if _ptr_events_loop.is_null() {
+        eprintln!("[glutin_create_windowed_context] Event loop is null");
+        return std::ptr::null_mut();
+    }
+
+    if _ptr_context_builder.is_null() {
+        eprintln!("[glutin_create_windowed_context] Context builder is null");
+        return std::ptr::null_mut();
+    }
+
+    CBox::with_raw(_ptr_events_loop, |events_loop| {
+        let context_builder= *CBox::from_raw(_ptr_context_builder);
+
+        println!("[Glutin] OpenGL Headless Context: {:?}", context_builder);
+        println!("[Glutin] Primary monitor: {:?}", events_loop.primary_monitor());
+
+        match context_builder.build_headless(events_loop, PhysicalSize::new(1., 1.)) {
+            Ok(context) => CBox::into_raw(context),
+            Err(err) => {
+                println!("[Glutin] Could not create headless context {:?}", err);
+                std::ptr::null_mut()
+            }
+        }
+    })
+}
+
+#[no_mangle]
 pub fn glutin_destroy_windowed_context(_ptr: *mut WindowedContext<PossiblyCurrent>) {
     let window = CBox::from_raw(_ptr);
 
