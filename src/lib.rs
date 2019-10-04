@@ -3,6 +3,7 @@
 extern crate glutin;
 extern crate libc;
 extern crate gleam;
+extern crate boxer;
 
 use std::os::raw::c_char;
 use std::ffi::CStr;
@@ -17,6 +18,7 @@ use glutin::event_loop::*;
 use glutin::monitor::*;
 
 use gleam::gl;
+use boxer::CBox;
 
 #[macro_use]
 mod cmacro;
@@ -592,7 +594,7 @@ pub fn glutin_create_events_loop() -> *mut EventLoop<()> {
 
 #[no_mangle]
 pub fn glutin_destroy_events_loop(_ptr: *mut EventLoop<()>) {
-    CBox::from_raw(_ptr);
+    CBox::drop(_ptr);
 }
 
 #[derive(Debug)]
@@ -612,87 +614,6 @@ pub enum GlutinWindowCommand {
     Drop {
         window: Window
     }
-}
-
-pub fn glutin_events_loop_process_window_commands(queue: &mut VecDeque<GlutinWindowCommand>, counter: u32) -> u32 {
-    if queue.is_empty() {
-        return 0;
-    }
-
-    if counter > 0 {
-        return counter - 1;
-    }
-
-    let command = queue.pop_front().unwrap();
-
-    match command {
-        GlutinWindowCommand::Split { windowed_context} => {
-            windowed_context.window().set_visible(true);
-            let (context, window) = unsafe { windowed_context.split() };
-            drop(context);
-            queue.push_front(GlutinWindowCommand::Drop {window});
-            return 16;
-        },
-        GlutinWindowCommand::Drop {window} => {
-            window.set_visible(true);
-            drop(window);
-            return 16;
-        }
-    }
-}
-
-#[no_mangle]
-pub fn glutin_events_loop_run_forever(_ptr_events_loop: *mut EventLoop<()>, _ptr_events_loop_callback: *mut GlutinEventLoopCallback) {
-    if _ptr_events_loop.is_null() {
-        eprintln!("[glutin_events_loop_run_forever] _ptr_events_loop is null");
-        return;
-    }
-
-    if _ptr_events_loop_callback.is_null() {
-        eprintln!("[glutin_events_loop_run_forever] _ptr_events_loop_callback is null");
-        return;
-    }
-
-    let events_loop = CBox::from_raw(_ptr_events_loop);
-    let events_loop_callback: &mut GlutinEventLoopCallback = to_rust_reference!(_ptr_events_loop_callback);
-    let mut counter: u32 = 0;
-
-    events_loop_callback.is_running = true;
-    events_loop_callback.window_commands = CBox::into_raw(VecDeque::new());
-
-    events_loop.run(move |event, _events_loop: &EventLoopWindowTarget<()>, control_flow: &mut ControlFlow| {
-		*control_flow = ControlFlow::Poll;
-        let mut c_event: GlutinEvent = Default::default();
-        let processed = glutin_events_loop_process_event(event, &mut c_event);
-        if processed {
-            if events_loop_callback.is_valid {
-                let callback = events_loop_callback.callback;
-                let _ptr_event_events_loop: *const EventLoopWindowTarget<()> = _events_loop as *const EventLoopWindowTarget<()>;
-                let c_control_flow = callback(&mut c_event, _ptr_event_events_loop);
-
-                let mut must_be_poll = false;
-
-                CBox::with_raw(events_loop_callback.window_commands, |commands| {
-                     if c_event.event_type == GlutinEventType::NewEvents {
-                         counter = glutin_events_loop_process_window_commands(commands, counter);
-                     }
-                    if counter > 0 || !commands.is_empty() {
-                        must_be_poll = true;
-                    }
-                });
-
-                match c_control_flow {
-                    GlutinControlFlow::Poll => { *control_flow = ControlFlow::Poll },
-                    GlutinControlFlow::Wait => { if !must_be_poll {
-                        *control_flow = ControlFlow::WaitUntil(time::Instant::now() + time::Duration::new(0, 50 * 1000000))
-                    } else {
-                        *control_flow = ControlFlow::Poll
-                    }},
-                    GlutinControlFlow::Exit => { *control_flow = ControlFlow::Poll }
-                }
-            }
-        };
-	});
 }
 
 #[no_mangle]
@@ -782,45 +703,45 @@ pub fn glutin_destroy_window_builder(_ptr: *mut WindowBuilder) {
 
 #[no_mangle]
 pub fn glutin_window_builder_with_title(_ptr_window_builder: *mut WindowBuilder, _ptr_title: *const c_char) -> *mut WindowBuilder {
-    CBox::with_window_builder(_ptr_window_builder, |builder| {
+    CBox::with_consumable_raw(_ptr_window_builder, |builder| {
         builder.with_title(CBox::to_string(_ptr_title))
     })
 }
 
 #[no_mangle]
 pub fn glutin_window_builder_with_decorations(_ptr_window_builder: *mut WindowBuilder, with_decorations: bool) -> *mut WindowBuilder {
-    CBox::with_window_builder(_ptr_window_builder, |builder| builder.with_decorations(with_decorations))
+    CBox::with_consumable_raw(_ptr_window_builder, |builder| builder.with_decorations(with_decorations))
 }
 
 #[no_mangle]
 pub fn glutin_window_builder_with_transparency(_ptr_window_builder: *mut WindowBuilder, with_transparency: bool) -> *mut WindowBuilder {
-    CBox::with_window_builder(_ptr_window_builder, |builder| builder.with_transparent(with_transparency))
+    CBox::with_consumable_raw(_ptr_window_builder, |builder| builder.with_transparent(with_transparency))
 }
 
 #[no_mangle]
 pub fn glutin_window_builder_with_resizable(_ptr_window_builder: *mut WindowBuilder, with_resizable: bool) -> *mut WindowBuilder {
-    CBox::with_window_builder(_ptr_window_builder, |builder| builder.with_resizable(with_resizable))
+    CBox::with_consumable_raw(_ptr_window_builder, |builder| builder.with_resizable(with_resizable))
 }
 
 #[no_mangle]
 pub fn glutin_window_builder_with_dimensions(_ptr_window_builder: *mut WindowBuilder, width: f64, height: f64) -> *mut WindowBuilder {
-    CBox::with_window_builder(_ptr_window_builder, |builder| builder.with_inner_size(LogicalSize::new(width, height)))
+    CBox::with_consumable_raw(_ptr_window_builder, |builder| builder.with_inner_size(LogicalSize::new(width, height)))
 }
 
 #[no_mangle]
 pub fn glutin_window_builder_with_maximized(_ptr_window_builder: *mut WindowBuilder, with_maximized: bool) -> *mut WindowBuilder {
-    CBox::with_window_builder(_ptr_window_builder, |builder| builder.with_maximized(with_maximized))
+    CBox::with_consumable_raw(_ptr_window_builder, |builder| builder.with_maximized(with_maximized))
 }
 
 #[no_mangle]
 pub fn glutin_window_builder_with_visibility(_ptr_window_builder: *mut WindowBuilder, with_visibility: bool) -> *mut WindowBuilder {
-    CBox::with_window_builder(_ptr_window_builder, |builder| builder.with_visible(with_visibility))
+    CBox::with_consumable_raw(_ptr_window_builder, |builder| builder.with_visible(with_visibility))
 }
 
 
 #[no_mangle]
 pub fn glutin_window_builder_with_always_on_top(_ptr_window_builder: *mut WindowBuilder, with_always_on_top: bool) -> *mut WindowBuilder {
-    CBox::with_window_builder(_ptr_window_builder, |builder| builder.with_always_on_top(with_always_on_top))
+    CBox::with_consumable_raw(_ptr_window_builder, |builder| builder.with_always_on_top(with_always_on_top))
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////
@@ -837,7 +758,7 @@ pub fn glutin_create_context_builder() -> *mut ContextBuilder<'static, NotCurren
 
 #[no_mangle]
 pub fn glutin_context_builder_with_gl_then_gles(_ptr_context_builder: *mut ContextBuilder<'static, NotCurrent>, gl_major: u8, gl_minor: u8, gles_major: u8, gles_minor: u8) -> *mut ContextBuilder<'static, NotCurrent> {
-    CBox::with_context_builder(_ptr_context_builder, |builder| {
+    CBox::with_consumable_raw(_ptr_context_builder, |builder| {
         builder.with_gl(GlRequest::GlThenGles {
             /// The version to use for OpenGL.
             opengl_version: (gl_major, gl_minor),
@@ -849,47 +770,47 @@ pub fn glutin_context_builder_with_gl_then_gles(_ptr_context_builder: *mut Conte
 
 #[no_mangle]
 pub fn glutin_context_builder_with_gl_latest(_ptr_context_builder: *mut ContextBuilder<'static,NotCurrent>) -> *mut ContextBuilder<'static, NotCurrent> {
-    CBox::with_context_builder(_ptr_context_builder, |builder| builder.with_gl(GlRequest::Latest))
+    CBox::with_consumable_raw(_ptr_context_builder, |builder| builder.with_gl(GlRequest::Latest))
 }
 
 #[no_mangle]
 pub fn glutin_context_builder_with_gl_profile_core(_ptr_context_builder: *mut ContextBuilder<'static,NotCurrent>) -> *mut ContextBuilder<'static, NotCurrent> {
-    CBox::with_context_builder(_ptr_context_builder, |builder| builder.with_gl_profile(GlProfile::Core))
+    CBox::with_consumable_raw(_ptr_context_builder, |builder| builder.with_gl_profile(GlProfile::Core))
 }
 
 #[no_mangle]
 pub fn glutin_context_builder_with_multisampling(_ptr_context_builder: *mut ContextBuilder<'static,NotCurrent>, samples: u16) -> *mut ContextBuilder<'static, NotCurrent> {
-    CBox::with_context_builder(_ptr_context_builder, |builder| builder.with_multisampling(samples))
+    CBox::with_consumable_raw(_ptr_context_builder, |builder| builder.with_multisampling(samples))
 }
 
 #[no_mangle]
 pub fn glutin_context_builder_with_depth_buffer(_ptr_context_builder: *mut ContextBuilder<'static,NotCurrent>, bits: u8) -> *mut ContextBuilder<'static, NotCurrent> {
-    CBox::with_context_builder(_ptr_context_builder, |builder| builder.with_depth_buffer(bits))
+    CBox::with_consumable_raw(_ptr_context_builder, |builder| builder.with_depth_buffer(bits))
 }
 
 #[no_mangle]
 pub fn glutin_context_builder_with_stencil_buffer(_ptr_context_builder: *mut ContextBuilder<'static,NotCurrent>, bits: u8) -> *mut ContextBuilder<'static, NotCurrent> {
-    CBox::with_context_builder(_ptr_context_builder, |builder| builder.with_stencil_buffer(bits))
+    CBox::with_consumable_raw(_ptr_context_builder, |builder| builder.with_stencil_buffer(bits))
 }
 
 #[no_mangle]
 pub fn glutin_context_builder_with_pixel_format(_ptr_context_builder: *mut ContextBuilder<'static,NotCurrent>, color_bits: u8, alpha_bits: u8) -> *mut ContextBuilder<'static, NotCurrent> {
-    CBox::with_context_builder(_ptr_context_builder, |builder| builder.with_pixel_format(color_bits, alpha_bits))
+    CBox::with_consumable_raw(_ptr_context_builder, |builder| builder.with_pixel_format(color_bits, alpha_bits))
 }
 
 #[no_mangle]
 pub fn glutin_context_builder_with_vsync(_ptr_context_builder: *mut ContextBuilder<'static,NotCurrent>, vsync: bool) -> *mut ContextBuilder<'static, NotCurrent> {
-    CBox::with_context_builder(_ptr_context_builder, |builder| builder.with_vsync(vsync))
+    CBox::with_consumable_raw(_ptr_context_builder, |builder| builder.with_vsync(vsync))
 }
 
 #[no_mangle]
 pub fn glutin_context_builder_with_srgb(_ptr_context_builder: *mut ContextBuilder<'static,NotCurrent>, srgb_enabled: bool) -> *mut ContextBuilder<'static, NotCurrent> {
-    CBox::with_context_builder(_ptr_context_builder, |builder| builder.with_srgb(srgb_enabled))
+    CBox::with_consumable_raw(_ptr_context_builder, |builder| builder.with_srgb(srgb_enabled))
 }
 
 #[no_mangle]
 pub fn glutin_context_builder_with_double_buffer(_ptr_context_builder: *mut ContextBuilder<'static,NotCurrent>, double_buffer_enabled: bool) -> *mut ContextBuilder<'static, NotCurrent> {
-    CBox::with_context_builder(_ptr_context_builder, |builder| builder.with_double_buffer(Some(double_buffer_enabled)))
+    CBox::with_consumable_raw(_ptr_context_builder, |builder| builder.with_double_buffer(Some(double_buffer_enabled)))
 }
 
 #[no_mangle]
@@ -1026,26 +947,26 @@ pub fn glutin_windowed_context_make_current(_ptr_window: *mut WindowedContext<Po
         }
     }
 
-    let _ptr_windowed_context =  for_create!(context);
+    let _ptr_windowed_context =  CBox::into_raw(context);
     _ptr_windowed_context
 }
 
 #[no_mangle]
 pub fn glutin_windowed_context_swap_buffers(_ptr_window: *mut WindowedContext<PossiblyCurrent>) {
-    if _ptr_window.is_null() { return }
+    if _ptr_window.is_null() { return; }
 
-    let window: &WindowedContext<PossiblyCurrent> = to_rust_reference!(_ptr_window);
-
-    match window.swap_buffers() {
-        Ok(_) => {},
-        Err(err) => {
-            match err {
-                ContextError::OsError(string) => { eprintln!("OS Error in swap_buffers: {}", string) },
-                ContextError::IoError(error)=> { eprintln!("IO Error in swap_buffers: {:?}", error) },
-                ContextError::ContextLost => { eprintln!("ContextLost Error in swap_buffers") }
+    CBox::with_raw(_ptr_window, |window| {
+        match window.swap_buffers() {
+            Ok(_) => {}
+            Err(err) => {
+                match err {
+                    ContextError::OsError(string) => { eprintln!("OS Error in swap_buffers: {}", string) }
+                    ContextError::IoError(error) => { eprintln!("IO Error in swap_buffers: {:?}", error) }
+                    ContextError::ContextLost => { eprintln!("ContextLost Error in swap_buffers") }
+                }
             }
         }
-    }
+    });
 }
 
 #[no_mangle]
@@ -1061,9 +982,9 @@ pub fn glutin_windowed_context_request_redraw(_ptr_window: *mut WindowedContext<
 pub fn glutin_windowed_context_is_current(_ptr_window: *mut WindowedContext<PossiblyCurrent>) -> bool {
     if _ptr_window.is_null() { return false };
 
-    let window: &WindowedContext<PossiblyCurrent> = to_rust_reference!(_ptr_window);
-
-    return window.is_current();
+    CBox::with_raw(_ptr_window, |window| {
+        window.is_current()
+    })
 }
 
 #[no_mangle]
@@ -1074,48 +995,43 @@ pub fn glutin_windowed_context_get_proc_address(_ptr_window: *mut WindowedContex
 }
 
 #[no_mangle]
-pub fn glutin_windowed_context_get_framebuffer_size(_ptr_window: *mut WindowedContext<PossiblyCurrent>, _ptr_size: *mut GlutinSizeU32) {
-    let size: &mut GlutinSizeU32 = to_rust_reference!(_ptr_size);
-
+pub fn glutin_windowed_context_get_framebuffer_size(_ptr_window: *mut WindowedContext<PossiblyCurrent>, _ptr_size: *mut GlutinSizeF64) {
     if _ptr_window.is_null() {
         CBox::with_raw(_ptr_size, |size| {
-            size.x = 0;
-            size.y = 0;
-        });
-        return;
-    }
-
-    let window: &WindowedContext<PossiblyCurrent> = to_rust_reference!(_ptr_window);
-
-    let device_pixel_ratio = window.window().hidpi_factor() as f32;
-
-    let window_size = window.window()
-        .inner_size()
-        .to_physical(device_pixel_ratio as f64);
-
-    size.x = window_size.width as u32;
-    size.y = window_size.height as u32;
-}
-
-#[no_mangle]
-pub fn glutin_windowed_context_get_inner_size(_ptr_window: *mut WindowedContext<PossiblyCurrent>, _ptr_size: *mut GlutinSizeF64) {
-    let size: &mut GlutinSizeF64 = to_rust_reference!(_ptr_size);
-
-    if _ptr_window.is_null() {
-       CBox::with_raw(_ptr_size, |size| {
             size.x = 0.0;
             size.y = 0.0;
         });
         return;
     }
 
-    let window: &WindowedContext<PossiblyCurrent> = to_rust_reference!(_ptr_window);
+    CBox::with_two_raw(_ptr_window, _ptr_size, |window, size | {
+        let device_pixel_ratio = window.window().hidpi_factor() as f32;
 
-    let window_size = window.window()
-        .inner_size();
+    let window_size: PhysicalSize = window.window()
+        .inner_size()
+        .to_physical(device_pixel_ratio as f64);
 
-    size.x = window_size.width;
-    size.y = window_size.height;
+        size.x = window_size.width;
+        size.y = window_size.height
+    });
+}
+
+#[no_mangle]
+pub fn glutin_windowed_context_get_inner_size(_ptr_window: *mut WindowedContext<PossiblyCurrent>, _ptr_size: *mut GlutinSizeF64) {
+    if _ptr_window.is_null() {
+        CBox::with_raw(_ptr_size, |size| {
+            size.x = 0.0;
+            size.y = 0.0;
+        });
+        return;
+    }
+
+    CBox::with_two_raw(_ptr_window, _ptr_size, |window, size | {
+        let window_size: LogicalSize = window.window().inner_size();
+
+        size.x = window_size.width;
+        size.y = window_size.height
+    });
 }
 
 #[no_mangle]
@@ -1144,10 +1060,27 @@ pub fn glutin_windowed_context_get_position(_ptr_window: *mut WindowedContext<Po
 }
 
 #[no_mangle]
-pub fn glutin_windowed_context_set_position(_ptr_window: *mut WindowedContext<PossiblyCurrent>, x: f64, y: f64) {
-    let window: &WindowedContext<PossiblyCurrent> = to_rust_reference!(_ptr_window);
+pub fn glutin_windowed_context_get_id(_ptr_window: *mut WindowedContext<PossiblyCurrent>, _ptr_size: *mut GlutinSizeU64) {
+    if _ptr_window.is_null() {
+        CBox::with_raw(_ptr_size, |size| {
+            size.x = 0;
+            size.y = 0;
+        });
+        return;
+    }
 
-    window.window().set_outer_position(LogicalPosition::new(x, y));
+    CBox::with_two_raw(_ptr_window, _ptr_size, |window, size | {
+        let id: (u64, u64) = glutin_convert_window_id(window.window().id());
+        size.x = id.0;
+        size.y = id.1;
+    });
+}
+
+#[no_mangle]
+pub fn glutin_windowed_context_set_position(_ptr_window: *mut WindowedContext<PossiblyCurrent>, x: f64, y: f64) {
+    CBox::with_raw(_ptr_window, |window| {
+        window.window().set_outer_position(LogicalPosition::new(x, y));
+    });
 }
 
 #[no_mangle]
@@ -1162,34 +1095,24 @@ pub fn glutin_windowed_context_set_title(_ptr_window: *mut WindowedContext<Possi
 
 #[no_mangle]
 pub fn glutin_windowed_context_set_inner_size(_ptr_window: *mut WindowedContext<PossiblyCurrent>, _width: f64, _height: f64) {
-    let window: &WindowedContext<PossiblyCurrent> = to_rust_reference!(_ptr_window);
-
-    window.window().set_inner_size(LogicalSize::new(_width, _height));
+    CBox::with_raw(_ptr_window, |window| {
+        window.window().set_inner_size(LogicalSize::new(_width, _height));
+    });
 }
 
 #[no_mangle]
 pub fn glutin_windowed_context_resize_logical(_ptr_window: *mut WindowedContext<PossiblyCurrent>, _width: f64, _height: f64) {
-    let window: &WindowedContext<PossiblyCurrent> = to_rust_reference!(_ptr_window);
-
-    let dpi_factor = window.window().hidpi_factor();
-    window.resize(LogicalSize::new(_width, _height).to_physical(dpi_factor));
+    CBox::with_raw(_ptr_window, |window| {
+        let dpi_factor = window.window().hidpi_factor();
+        window.resize(LogicalSize::new(_width, _height).to_physical(dpi_factor));
+    });
 }
 
 #[no_mangle]
 pub fn glutin_windowed_context_resize_physical(_ptr_window: *mut WindowedContext<PossiblyCurrent>, _width: f64, _height: f64) {
-    let window: &WindowedContext<PossiblyCurrent> = to_rust_reference!(_ptr_window);
-
-    window.resize(PhysicalSize::new(_width, _height));
-}
-
-#[no_mangle]
-pub fn glutin_windowed_context_get_id(_ptr_window: *mut WindowedContext<PossiblyCurrent>, _ptr_size: *mut GlutinSizeU64) {
-    let window: &WindowedContext<PossiblyCurrent> = to_rust_reference!(_ptr_window);
-    let size: &mut GlutinSizeU64 = to_rust_reference!(_ptr_size);
-
-    let id: (u64, u64) = glutin_convert_window_id(window.window().id());
-    size.x = id.0;
-    size.y = id.1;
+    CBox::with_raw(_ptr_window, |window| {
+        window.resize(PhysicalSize::new(_width, _height));
+    });
 }
 
 #[no_mangle]
