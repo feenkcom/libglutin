@@ -597,86 +597,27 @@ pub fn glutin_destroy_events_loop(_ptr: *mut EventLoop<()>) {
 }
 
 #[no_mangle]
-pub fn glutin_create_event_loop_callback(callback: extern fn(*mut GlutinEvent) -> GlutinControlFlow) -> *mut GlutinEventLoopCallback {
-    CBox::into_raw(GlutinEventLoopCallback::new(callback))
-}
-
-#[no_mangle]
-pub fn glutin_destroy_event_loop_callback(_ptr: *mut GlutinEventLoopCallback) {
-    CBox::drop(_ptr);
-}
-
-#[derive(Debug)]
-#[repr(C)]
-pub struct GlutinEventLoopCallback {
-    is_valid: bool,
-    is_running: bool,
-    callback: extern fn(*mut GlutinEvent) -> GlutinControlFlow
-}
-
-impl GlutinEventLoopCallback {
-    fn new(callback: extern fn(*mut GlutinEvent) -> GlutinControlFlow) -> GlutinEventLoopCallback {
-        GlutinEventLoopCallback { is_valid: true, is_running: false, callback }
-    }
-}
-
-#[derive(Debug)]
-pub enum GlutinWindowCommand {
-    Split {
-        windowed_context: WindowedContext<PossiblyCurrent>
-    },
-    Drop {
-        window: Window
-    }
-}
-
-#[no_mangle]
-pub fn glutin_events_loop_run_return(_ptr_events_loop: *mut EventLoop<()>, _ptr_events_loop_callback: *mut GlutinEventLoopCallback) {
+pub fn glutin_events_loop_run_return(_ptr_events_loop: *mut EventLoop<()>, callback: extern fn(*mut GlutinEvent) -> GlutinControlFlow) {
     if _ptr_events_loop.is_null() {
         eprintln!("[glutin_events_loop_run_forever] _ptr_events_loop is null");
         return;
     }
 
-    if _ptr_events_loop_callback.is_null() {
-        eprintln!("[glutin_events_loop_run_forever] _ptr_events_loop_callback is null");
-        return;
-    }
-
-    CBox::with_two_raw(_ptr_events_loop, _ptr_events_loop_callback, |events_loop, events_loop_callback| {
-        events_loop_callback.is_running = true;
-
+    CBox::with_raw(_ptr_events_loop, |events_loop| {
         events_loop.run_return(|event, _events_loop: &EventLoopWindowTarget<()>, control_flow: &mut ControlFlow| {
             *control_flow = ControlFlow::Poll;
             let mut c_event: GlutinEvent = Default::default();
             let processed = glutin_events_loop_process_event(event, &mut c_event);
             if processed {
-                if events_loop_callback.is_valid {
-                    let callback = events_loop_callback.callback;
-                    let c_control_flow = callback(&mut c_event);
-                    match c_control_flow {
-                        GlutinControlFlow::Poll => { *control_flow = ControlFlow::Poll }
-                        GlutinControlFlow::Wait => { *control_flow = ControlFlow::WaitUntil(time::Instant::now() + time::Duration::new(0, 50 * 1000000)) }
-                        GlutinControlFlow::Exit => { *control_flow = ControlFlow::Exit }
-                    }
+                let c_control_flow = callback(&mut c_event);
+                match c_control_flow {
+                    GlutinControlFlow::Poll => { *control_flow = ControlFlow::Poll }
+                    GlutinControlFlow::Wait => { *control_flow = ControlFlow::WaitUntil(time::Instant::now() + time::Duration::new(0, 50 * 1000000)) }
+                    GlutinControlFlow::Exit => { *control_flow = ControlFlow::Exit }
                 }
             }
         });
-        events_loop_callback.is_running = false;
     });
-}
-
-#[no_mangle]
-pub fn glutin_events_loop_run_forever_destroy_windowed_context(_ptr_windowed_context: *mut WindowedContext<PossiblyCurrent>, _ptr_events_loop_callback: *mut GlutinEventLoopCallback) {
-    // the window is already destroyed, we do nothing
-    if _ptr_windowed_context.is_null() {
-        return;
-    }
-
-    if _ptr_events_loop_callback.is_null() {
-        eprintln!("[glutin_events_loop_run_forever_destroy_windowed_context] Event loop is null");
-        return;
-    }
-    CBox::drop(_ptr_windowed_context);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////
@@ -922,7 +863,6 @@ pub fn glutin_try_headless_context(
         CBox::drop(context);
         true
     }
-
 }
 
 #[no_mangle]
@@ -930,13 +870,14 @@ pub fn glutin_destroy_windowed_context(_ptr: *mut WindowedContext<PossiblyCurren
     let window = CBox::from_raw(_ptr);
 
     match unsafe { window.make_not_current() } {
-        Ok(_windowed_context) => { },
+        Ok(_windowed_context) => { std::mem::drop(_windowed_context) },
         Err((_windowed_context, err)) => {
             match err {
                 ContextError::OsError(string) => { eprintln!("OS Error in glutin_destroy_windowed_context: {}", string) },
-                ContextError::IoError(error)=> { eprintln!("IO Error in glutin_destroy_windowed_context: {:?}", error) },
+                ContextError::IoError(error) => { eprintln!("IO Error in glutin_destroy_windowed_context: {:?}", error) },
                 ContextError::ContextLost => { eprintln!("ContextLost Error in glutin_destroy_windowed_context") }
             }
+            std::mem::drop(_windowed_context)
         }
     }
 }
