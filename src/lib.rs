@@ -39,7 +39,6 @@ mod ext;
 
 use cstruct::*;
 use std::time;
-use std::collections::VecDeque;
 use cenum::GlutinCursorIcon;
 use glutin::platform::desktop::EventLoopExtDesktop;
 
@@ -597,13 +596,28 @@ pub fn glutin_destroy_events_loop(_ptr: *mut EventLoop<()>) {
     CBox::drop(_ptr);
 }
 
+#[no_mangle]
+pub fn glutin_create_event_loop_callback(callback: extern fn(*mut GlutinEvent) -> GlutinControlFlow) -> *mut GlutinEventLoopCallback {
+    CBox::into_raw(GlutinEventLoopCallback::new(callback))
+}
+
+#[no_mangle]
+pub fn glutin_destroy_event_loop_callback(_ptr: *mut GlutinEventLoopCallback) {
+    CBox::drop(_ptr);
+}
+
 #[derive(Debug)]
 #[repr(C)]
 pub struct GlutinEventLoopCallback {
     is_valid: bool,
     is_running: bool,
-    callback: extern fn(*mut GlutinEvent, *const EventLoopWindowTarget<()>) -> GlutinControlFlow,
-    window_commands: *mut VecDeque<GlutinWindowCommand>
+    callback: extern fn(*mut GlutinEvent) -> GlutinControlFlow
+}
+
+impl GlutinEventLoopCallback {
+    fn new(callback: extern fn(*mut GlutinEvent) -> GlutinControlFlow) -> GlutinEventLoopCallback {
+        GlutinEventLoopCallback { is_valid: true, is_running: false, callback }
+    }
 }
 
 #[derive(Debug)]
@@ -638,8 +652,7 @@ pub fn glutin_events_loop_run_return(_ptr_events_loop: *mut EventLoop<()>, _ptr_
             if processed {
                 if events_loop_callback.is_valid {
                     let callback = events_loop_callback.callback;
-                    let _ptr_event_events_loop: *const EventLoopWindowTarget<()> = _events_loop as *const EventLoopWindowTarget<()>;
-                    let c_control_flow = callback(&mut c_event, _ptr_event_events_loop);
+                    let c_control_flow = callback(&mut c_event);
                     match c_control_flow {
                         GlutinControlFlow::Poll => { *control_flow = ControlFlow::Poll }
                         GlutinControlFlow::Wait => { *control_flow = ControlFlow::WaitUntil(time::Instant::now() + time::Duration::new(0, 50 * 1000000)) }
@@ -1045,7 +1058,7 @@ pub fn glutin_windowed_context_get_position(_ptr_window: *mut WindowedContext<Po
     }
 
     CBox::with_two_raw(_ptr_window, _ptr_position, |window, size | {
-        match window.window().outer_position() {
+        match window.window().inner_position() {
             Ok(_logical_position) => {
                 size.x = _logical_position.x;
                 size.y = _logical_position.y;
