@@ -5,8 +5,8 @@ authors = ["Aliaksei Syrel <alex.syrel@gmail.com>"]
 
 [dependencies]
 glutin = "0.22.0-alpha3"
-gleam = "0.6.19"
-libc = "0.2.62"
+gleam = "0.8.0"
+libc = "0.2.65"
 boxer = { git = "https://github.com/syrel/rust-boxer" }
 
 [patch.crates-io]
