@@ -7,7 +7,7 @@ authors = ["Aliaksei Syrel <alex.syrel@gmail.com>"]
 glutin = "0.22.0-alpha3"
 gleam = "0.8.0"
 libc = "0.2.65"
-boxer = { git = "https://github.com/feenkcom/libboxer" }
+boxer = { git = "https://github.com/feenkcom/gtoolkit-boxer" }
 
 [patch.crates-io]
 winit = { git = "https://github.com/rust-windowing/winit.git", rev = "429bbfade0ee68f7d3f8ba89498984b72b805f13" }

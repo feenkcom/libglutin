@@ -1,39 +1,5 @@
 use super::*;
 
-#[derive(Debug, Copy, Clone, Default)]
-#[repr(C)]
-pub struct GlutinSizeU64 {
-    pub x: u64,
-    pub y: u64,
-}
-
-#[no_mangle]
-pub fn glutin_create_size_u64() -> *mut GlutinSizeU64 {
-    CBox::into_raw(GlutinSizeU64::default())
-}
-
-#[no_mangle]
-pub fn glutin_destroy_size_u64(_ptr: *mut GlutinSizeU64) {
-    CBox::drop(_ptr)
-}
-
-#[derive(Debug, Copy, Clone, Default)]
-#[repr(C)]
-pub struct GlutinSizeF64 {
-    pub x: f64,
-    pub y: f64,
-}
-
-#[no_mangle]
-pub fn glutin_create_size_f64() -> *mut GlutinSizeF64 {
-    CBox::into_raw(GlutinSizeF64::default())
-}
-
-#[no_mangle]
-pub fn glutin_destroy_size_f64(_ptr: *mut GlutinSizeF64) {
-    CBox::drop(_ptr)
-}
-
 #[derive(Debug, Copy, Clone)]
 #[repr(C)]
 pub struct GlutinCString {
