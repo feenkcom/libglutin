@@ -5,8 +5,6 @@ extern crate libc;
 extern crate gleam;
 extern crate boxer;
 
-use std::os::raw::c_char;
-use std::ffi::CStr;
 use std::mem::transmute;
 use std::mem::transmute_copy;
 
@@ -23,12 +21,9 @@ use boxer::number::BoxerUint128;
 use boxer::size::{BoxerSizeF64};
 use boxer::point::{BoxerPointF64};
 
-#[macro_use]
-mod cmacro;
-
-pub mod cstruct;
-pub mod cgl;
-pub mod cenum;
+pub mod structs;
+pub mod opengl;
+pub mod enums;
 pub mod events;
 
 #[cfg(target_os = "macos")]
@@ -41,11 +36,12 @@ mod ext;
 #[path = "platform/others.rs"]
 mod ext;
 
-use cstruct::*;
+use structs::*;
 use std::time;
-use cenum::GlutinCursorIcon;
+use enums::GlutinCursorIcon;
 use glutin::platform::desktop::EventLoopExtDesktop;
 use events::*;
+use boxer::string::BoxerString;
 
 ///////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////// L I B R A R Y /////////////////////////////////////
@@ -57,15 +53,19 @@ pub fn glutin_test() -> bool {
 }
 
 #[no_mangle]
-pub fn glutin_println(_ptr_message: *const c_char) {
-    let message = to_rust_string!(_ptr_message);
-    println!("{}", message);
+pub fn glutin_println(_ptr_message: *mut BoxerString) {
+    CBox::with_optional_raw(_ptr_message, |option| match option {
+        None => {},
+        Some(message) => println!("{}", message.to_string())
+    });
 }
 
 #[no_mangle]
-pub fn glutin_print(_ptr_message: *const c_char) {
-    let message = to_rust_string!(_ptr_message);
-    print!("{}", message);
+pub fn glutin_print(_ptr_message: *mut BoxerString) {
+    CBox::with_optional_raw(_ptr_message, |option| match option {
+        None => {},
+        Some(message) => print!("{}", message.to_string())
+    });
 }
 
 pub fn glutin_convert_window_id(window_id: WindowId) -> BoxerUint128 {
@@ -168,9 +168,11 @@ pub fn glutin_destroy_window_builder(_ptr: *mut WindowBuilder) {
 }
 
 #[no_mangle]
-pub fn glutin_window_builder_with_title(_ptr_window_builder: *mut WindowBuilder, _ptr_title: *const c_char) -> *mut WindowBuilder {
+pub fn glutin_window_builder_with_title(_ptr_window_builder: *mut WindowBuilder, _ptr_boxer_string: *mut BoxerString) -> *mut WindowBuilder {
     CBox::with_consumable_raw(_ptr_window_builder, |builder| {
-        builder.with_title(CBox::to_string(_ptr_title))
+        CBox::with_raw(_ptr_boxer_string, |string| {
+          builder.with_title(string.to_string())
+        })
     })
 }
 
@@ -203,7 +205,6 @@ pub fn glutin_window_builder_with_maximized(_ptr_window_builder: *mut WindowBuil
 pub fn glutin_window_builder_with_visibility(_ptr_window_builder: *mut WindowBuilder, with_visibility: bool) -> *mut WindowBuilder {
     CBox::with_consumable_raw(_ptr_window_builder, |builder| builder.with_visible(with_visibility))
 }
-
 
 #[no_mangle]
 pub fn glutin_window_builder_with_always_on_top(_ptr_window_builder: *mut WindowBuilder, with_always_on_top: bool) -> *mut WindowBuilder {
@@ -310,8 +311,9 @@ pub fn glutin_create_windowed_context(
     }
 
     CBox::with_raw(_ptr_events_loop, |events_loop| {
-        let window_builder = *CBox::from_raw(_ptr_window_builder);
-        let context_builder= *CBox::from_raw(_ptr_context_builder);
+        // we consume both window_builder and context_builder
+        let window_builder = unsafe { *CBox::from_raw(_ptr_window_builder) };
+        let context_builder= unsafe { *CBox::from_raw(_ptr_context_builder) };
 
         println!("[Glutin] OpenGL Context: {:?}", context_builder);
         println!("[Glutin] Primary monitor: {:?}", events_loop.primary_monitor());
@@ -343,7 +345,8 @@ pub fn glutin_create_headless_context(
     }
 
     CBox::with_raw(_ptr_events_loop, |events_loop| {
-        let context_builder= *CBox::from_raw(_ptr_context_builder);
+        // we consume context_builder here
+        let context_builder= unsafe { *CBox::from_raw(_ptr_context_builder) };
 
         println!("[Glutin] OpenGL Headless Context: {:?}", context_builder);
         println!("[Glutin] Primary monitor: {:?}", events_loop.primary_monitor());
@@ -379,7 +382,9 @@ pub fn glutin_try_headless_context(
 
 #[no_mangle]
 pub fn glutin_destroy_windowed_context(_ptr: *mut WindowedContext<PossiblyCurrent>) {
-    let window = CBox::from_raw(_ptr);
+
+    // the window will be deleted to we let rust take control back
+    let window = unsafe { CBox::from_raw(_ptr) };
 
     match unsafe { window.make_not_current() } {
         Ok(_windowed_context) => { std::mem::drop(_windowed_context) },
@@ -450,13 +455,6 @@ pub fn glutin_windowed_context_is_current(_ptr_window: *mut WindowedContext<Poss
 
     CBox::with_raw(_ptr_window, |window| {
         window.is_current()
-    })
-}
-
-#[no_mangle]
-pub fn glutin_windowed_context_get_proc_address(_ptr_window: *mut WindowedContext<PossiblyCurrent>, _ptr_proc_name: *const c_char) -> *const () {
-    CBox::with_raw(_ptr_window, |window| {
-        window.get_proc_address(&CBox::to_string(_ptr_proc_name))
     })
 }
 
@@ -537,12 +535,16 @@ pub fn glutin_windowed_context_set_position(_ptr_window: *mut WindowedContext<Po
 }
 
 #[no_mangle]
-pub fn glutin_windowed_context_set_title(_ptr_window: *mut WindowedContext<PossiblyCurrent>, _ptr_title: *const c_char) {
-    if _ptr_window.is_null() {
-        return;
-    }
-    CBox::with_raw(_ptr_window, |window| {
-        window.window().set_title(&CBox::to_string(_ptr_title))
+pub fn glutin_windowed_context_set_title(_ptr_window: *mut WindowedContext<PossiblyCurrent>, _ptr_boxer_string: *mut BoxerString) {
+    CBox::with_optional_raw(_ptr_window, |window_option| {
+        match window_option {
+            None => {},
+            Some(window) => {
+                CBox::with_raw(_ptr_boxer_string, |string| {
+                    window.window().set_title(string.to_string().as_ref())
+                })
+            }
+        }
     });
 }
 

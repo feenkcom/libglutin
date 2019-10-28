@@ -1,4 +1,5 @@
 use super::*;
+use boxer::CBox;
 
 ///////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////  G L ////////////////////////////////////////
@@ -10,31 +11,31 @@ fn error_callback(_gl: &dyn gleam::gl::Gl, message: &str, error: gl::GLenum) {
 
 #[no_mangle]
 pub fn glutin_windowed_context_load_gl(_ptr_window: *mut glutin::WindowedContext<glutin::PossiblyCurrent>) -> *mut GlutinGL {
-    let window: &glutin::WindowedContext<glutin::PossiblyCurrent> = to_rust_reference!(_ptr_window);
+    CBox::with_raw(_ptr_window, | window | {
+        let mut gl: std::rc::Rc<(dyn gleam::gl::Gl + 'static)> = match window.get_api() {
+            glutin::Api::OpenGl => unsafe {
+                gl::GlFns::load_with(|symbol| window.get_proc_address(symbol) as *const _)
+            },
+            glutin::Api::OpenGlEs => unsafe {
+                gl::GlesFns::load_with(|symbol| window.get_proc_address(symbol) as *const _)
+            },
+            glutin::Api::WebGl => unimplemented!(),
+        };
 
-    let mut gl: std::rc::Rc<(dyn gleam::gl::Gl + 'static)> = match window.get_api() {
-        glutin::Api::OpenGl => unsafe {
-            gl::GlFns::load_with(|symbol| window.get_proc_address(symbol) as *const _)
-        },
-        glutin::Api::OpenGlEs => unsafe {
-            gl::GlesFns::load_with(|symbol| window.get_proc_address(symbol) as *const _)
-        },
-        glutin::Api::WebGl => unimplemented!(),
-    };
+        gl = gl::ErrorReactingGl::wrap(gl, error_callback);
 
-    gl = gl::ErrorReactingGl::wrap(gl, error_callback);
+        let _mut_gl: *const dyn gleam::gl::Gl = std::rc::Rc::into_raw(gl);
 
-    let _mut_gl: *const dyn gleam::gl::Gl = std::rc::Rc::into_raw(gl);
-
-    let hack = GlutinGL { gl: _mut_gl };
-    let _hack_ptr = for_create!(hack);
-
-    _hack_ptr
+        let hack = GlutinGL { gl: _mut_gl };
+        let _hack_ptr = CBox::into_raw(hack);
+        _hack_ptr
+    })
 }
 
 #[no_mangle]
 pub fn glutin_gl_release(_ptr_gl: *mut GlutinGL) {
-    let hack: &GlutinGL = for_delete!(_ptr_gl);
+    // it will be dropped so give Rust control back
+    let hack = unsafe { CBox::from_raw(_ptr_gl) };
     let _: std::rc::Rc<dyn gleam::gl::Gl> = unsafe { std::rc::Rc::from_raw(hack.gl) };
     //drop
 }
@@ -50,28 +51,12 @@ pub fn glutin_gl_clear(_ptr_gl: *mut GlutinGL, buffer_mask: gl::GLbitfield) {
 }
 
 #[no_mangle]
-pub fn glutin_gl_get_string(_ptr_gl: *mut GlutinGL, which: gl::GLenum, _ptr_string: *mut GlutinCString) {
-    GlutinGL::with_raw(_ptr_gl,|gl| {
-        let c_string: &mut GlutinCString = to_rust_reference!(_ptr_string);
-        let version = gl.get_string(which);
-
-        let length = version.len();
-
-        let s: std::ffi::CString = std::ffi::CString::new(version).unwrap();
-        let p: *mut c_char = s.into_raw();
-
-        c_string.data = p;
-        c_string.length = length;
+pub fn glutin_gl_get_string(_ptr_gl: *mut GlutinGL, which: gl::GLenum, _ptr_string: *mut BoxerString) {
+    GlutinGL::with_raw(_ptr_gl, |gl| {
+        CBox::with_raw(_ptr_string, |string| {
+            string.set_string(gl.get_string(which))
+        })
     });
-}
-
-#[no_mangle]
-pub fn glutin_gl_free_cstring(_ptr_string: *mut GlutinCString) {
-    let c_string: &mut GlutinCString = to_rust_reference!(_ptr_string);
-    unsafe {
-        std::ffi::CString::from_raw(c_string.data);
-    }
-    c_string.length = 0;
 }
 
 #[no_mangle]
@@ -129,10 +114,12 @@ pub fn glutin_gl_compile_shader(_ptr_gl: *mut GlutinGL, _shader: gl::GLuint) {
 }
 
 #[no_mangle]
-pub fn glutin_gl_shader_source(_ptr_gl: *mut GlutinGL, _shader: gl::GLuint, _ptr_title: *const c_char) {
+pub fn glutin_gl_shader_source(_ptr_gl: *mut GlutinGL, _shader: gl::GLuint, _ptr_source: *mut BoxerString) {
     GlutinGL::with_raw(_ptr_gl,|gl| {
-        let source: &str = to_rust_string!(_ptr_title);
-        gl.shader_source(_shader, &[source.as_bytes()]);
+        CBox::with_raw(_ptr_source, |source| {
+            let source_string = source.to_string();
+            gl.shader_source(_shader, &[source_string.as_bytes()]);
+        });
     });
 }
 
@@ -186,13 +173,17 @@ pub fn glutin_gl_array_buffer_data_static_draw(_ptr_gl: *mut GlutinGL, array: *c
 }
 
 #[no_mangle]
-pub fn glutin_gl_get_attribute_location(_ptr_gl: *mut GlutinGL, program: gl::GLuint, _ptr_name: *const c_char) -> i32 {
-    GlutinGL::with_raw(_ptr_gl,|gl| gl.get_attrib_location(program, to_rust_string!(_ptr_name)))
+pub fn glutin_gl_get_attribute_location(_ptr_gl: *mut GlutinGL, program: gl::GLuint, _ptr_location: *mut BoxerString) -> i32 {
+    GlutinGL::with_raw(_ptr_gl,|gl| {
+        CBox::with_raw(_ptr_location, |location| gl.get_attrib_location(program, location.to_string().as_ref()))
+    })
 }
 
 #[no_mangle]
-pub fn glutin_gl_get_uniform_location(_ptr_gl: *mut GlutinGL, program: gl::GLuint, _ptr_name: *const c_char) -> i32 {
-    GlutinGL::with_raw(_ptr_gl,|gl| gl.get_uniform_location(program, to_rust_string!(_ptr_name)))
+pub fn glutin_gl_get_uniform_location(_ptr_gl: *mut GlutinGL, program: gl::GLuint, _ptr_location: *mut BoxerString) -> i32 {
+    GlutinGL::with_raw(_ptr_gl,|gl| {
+        CBox::with_raw(_ptr_location, |location| gl.get_uniform_location(program, location.to_string().as_ref()))
+    })
 }
 
 #[no_mangle]
@@ -203,6 +194,7 @@ pub fn glutin_gl_tex_parameter_i(_ptr_gl: *mut GlutinGL, target: gl::GLenum, pna
 #[no_mangle]
 pub fn glutin_gl_tex_image_2d(_ptr_gl: *mut GlutinGL, level: gl::GLint, internal_format: gl::GLint, width: gl::GLsizei, height: gl::GLsizei, border: gl::GLint, format: gl::GLenum, ty: gl::GLenum, array: *const u8, length: u32) {
     GlutinGL::with_raw(_ptr_gl,|gl| {
+        // data is a reference, dropping it does nothing to the original source
         let data: &[u8] = unsafe { std::slice::from_raw_parts(array, length as usize) };
         gl.tex_image_2d(
             gl::TEXTURE_2D,

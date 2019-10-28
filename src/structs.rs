@@ -1,12 +1,5 @@
 use super::*;
 
-#[derive(Debug, Copy, Clone)]
-#[repr(C)]
-pub struct GlutinCString {
-    pub data: *mut c_char,
-    pub length: usize,
-}
-
 #[repr(C)]
 pub struct GlutinGL {
     pub gl: *const dyn gleam::gl::Gl,
