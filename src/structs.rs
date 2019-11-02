@@ -1,5 +1,3 @@
-use super::*;
-
 #[repr(C)]
 pub struct GlutinGL {
     pub gl: *const dyn gleam::gl::Gl,

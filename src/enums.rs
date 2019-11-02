@@ -1,4 +1,4 @@
-use super::*;
+use glutin::window::CursorIcon;
 
 #[derive(Debug, Copy, Clone)]
 #[repr(u32)]

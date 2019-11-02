@@ -1,8 +1,10 @@
-use super::*;
-
 use boxer::number::BoxerUint128;
 
 use glutin::event::*;
+use glutin::dpi::{LogicalSize, LogicalPosition};
+use glutin_convert_window_id;
+
+use std::mem::transmute;
 
 #[derive(Debug, Default)]
 #[repr(C)]

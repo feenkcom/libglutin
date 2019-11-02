@@ -1,5 +1,8 @@
-use super::*;
 use boxer::CBox;
+use boxer::boxes::{ValueBox, ValueBoxPointer};
+use gleam::gl;
+use structs::GlutinGL;
+use boxer::string::BoxerString;
 
 ///////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////  G L ////////////////////////////////////////
@@ -10,8 +13,8 @@ fn error_callback(_gl: &dyn gleam::gl::Gl, message: &str, error: gl::GLenum) {
 }
 
 #[no_mangle]
-pub fn glutin_windowed_context_load_gl(_ptr_window: *mut glutin::WindowedContext<glutin::PossiblyCurrent>) -> *mut GlutinGL {
-    CBox::with_raw(_ptr_window, | window | {
+pub fn glutin_windowed_context_load_gl(_ptr_window: *mut ValueBox<glutin::WindowedContext<glutin::PossiblyCurrent>>) -> *mut GlutinGL {
+    _ptr_window.with(|window| {
         let mut gl: std::rc::Rc<(dyn gleam::gl::Gl + 'static)> = match window.get_api() {
             glutin::Api::OpenGl => unsafe {
                 gl::GlFns::load_with(|symbol| window.get_proc_address(symbol) as *const _)

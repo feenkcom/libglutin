@@ -1,8 +1,8 @@
 #![cfg(target_os = "macos")]
 
-use super::*;
-
-use platform::macos::WindowBuilderExtMacOS;
+use glutin::platform::macos::WindowBuilderExtMacOS;
+use boxer::CBox;
+use glutin::window::WindowBuilder;
 
 #[no_mangle]
 pub fn glutin_window_builder_with_full_size(_ptr_window_builder: *mut WindowBuilder, _with_full_size: bool) -> *mut WindowBuilder {
