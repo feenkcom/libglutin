@@ -14,26 +14,25 @@ use boxer::point::BoxerPointF64;
 ///////////////////////////// W I N D O W   A C C E S S O R S /////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////
 #[no_mangle]
-pub fn glutin_windowed_context_make_current(_ptr_window: *mut WindowedContext<PossiblyCurrent>) -> *mut WindowedContext<PossiblyCurrent> {
-    if _ptr_window.is_null() { return _ptr_window }
+pub fn glutin_windowed_context_make_current(mut _ptr_window: *mut ValueBox<WindowedContext<PossiblyCurrent>>) {
+    if _ptr_window.is_null() { return }
 
-    let window: Box<WindowedContext<PossiblyCurrent>> = unsafe { Box::from_raw(_ptr_window) };
-    let context: WindowedContext<PossiblyCurrent>;
+    _ptr_window.with_value_and_box_consumed(|window, value_box| {
+        let context: WindowedContext<PossiblyCurrent>;
 
-    match unsafe { window.make_current() } {
-        Ok(windowed_context) => { context = windowed_context },
-        Err((windowed_context, err)) => {
-            context = windowed_context;
-            match err {
-                ContextError::OsError(string) => { eprintln!("OS Error in make_current: {}", string) },
-                ContextError::IoError(error)=> { eprintln!("IO Error in make_current: {:?}", error) },
-                ContextError::ContextLost => { eprintln!("ContextLost Error in make_current") }
+        match unsafe { window.make_current() } {
+            Ok(windowed_context) => { context = windowed_context },
+            Err((windowed_context, err)) => {
+                context = windowed_context;
+                match err {
+                    ContextError::OsError(string) => { eprintln!("OS Error in make_current: {}", string) },
+                    ContextError::IoError(error)=> { eprintln!("IO Error in make_current: {:?}", error) },
+                    ContextError::ContextLost => { eprintln!("ContextLost Error in make_current") }
+                }
             }
         }
-    }
-
-    let _ptr_windowed_context =  CBox::into_raw(context);
-    _ptr_windowed_context
+        unsafe { value_box.mutate(context); };
+    });
 }
 
 #[no_mangle]
