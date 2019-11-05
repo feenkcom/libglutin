@@ -1,4 +1,4 @@
-use glutin::{ContextBuilder, NotCurrent, PossiblyCurrent, WindowedContext, Context, ContextError};
+use glutin::{ContextBuilder, NotCurrent, PossiblyCurrent, WindowedContext, Context};
 use glutin::dpi::PhysicalSize;
 use glutin::event_loop::EventLoop;
 use glutin::window::WindowBuilder;
