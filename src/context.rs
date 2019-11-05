@@ -105,20 +105,5 @@ pub fn glutin_try_headless_context(
 
 #[no_mangle]
 pub fn glutin_destroy_windowed_context(_ptr: *mut ValueBox<WindowedContext<PossiblyCurrent>>) {
-    match _ptr.as_box() {
-        None => {  },
-        Some(window) => {
-            match unsafe { window.make_not_current() } {
-                Ok(_windowed_context) => { std::mem::drop(_windowed_context) },
-                Err((_windowed_context, err)) => {
-                    match err {
-                        ContextError::OsError(string) => { eprintln!("OS Error in glutin_destroy_windowed_context: {}", string) },
-                        ContextError::IoError(error) => { eprintln!("IO Error in glutin_destroy_windowed_context: {:?}", error) },
-                        ContextError::ContextLost => { eprintln!("ContextLost Error in glutin_destroy_windowed_context") }
-                    }
-                    std::mem::drop(_windowed_context)
-                }
-            }
-        },
-    }
+    _ptr.drop();
 }
