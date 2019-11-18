@@ -57,7 +57,7 @@ pub fn glutin_pixel_format_has_multisampling(_ptr: *mut ValueBox<PixelFormat>) -
 }
 
 #[no_mangle]
-pub fn glutin_pixel_format_multisampling(_ptr: *mut ValueBox<PixelFormat>) -> u16 {
+pub fn glutin_pixel_format_get_multisampling(_ptr: *mut ValueBox<PixelFormat>) -> u16 {
     _ptr.with(|pixel_format| pixel_format.multisampling.unwrap_or(0))
 }
 
