@@ -256,3 +256,12 @@ pub fn glutin_gl_vertex_attrib_pointer(_ptr_gl: *mut GlutinGL, index: gl::GLuint
 pub fn glutin_gl_draw_arrays(_ptr_gl: *mut GlutinGL, mode: gl::GLenum, first: gl::GLint, count: gl::GLsizei) {
     GlutinGL::with_raw(_ptr_gl,|gl| gl.draw_arrays(mode, first, count));
 }
+
+#[no_mangle]
+pub fn glutin_gl_get_integer(_ptr_gl: *mut GlutinGL, name: gl::GLenum) -> gl::GLint {
+    GlutinGL::with_raw(_ptr_gl,|gl| {
+        let mut result: [gl::GLint; 1] = [0;1];
+        unsafe { gl.get_integer_v( name, &mut result) };
+        result[0]
+    })
+}
