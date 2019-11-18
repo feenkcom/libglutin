@@ -28,6 +28,7 @@ pub fn glutin_windowed_context_make_current(mut _ptr_window: *mut ValueBox<Windo
                     ContextError::OsError(string) => { eprintln!("OS Error in make_current: {}", string) },
                     ContextError::IoError(error)=> { eprintln!("IO Error in make_current: {:?}", error) },
                     ContextError::ContextLost => { eprintln!("ContextLost Error in make_current") }
+                    ContextError::FunctionUnavailable => { eprintln!("FunctionUnavailable Error in make_current") }
                 }
             }
         }
@@ -45,6 +46,7 @@ pub fn glutin_windowed_context_swap_buffers(_ptr_window: *mut ValueBox<WindowedC
                     ContextError::OsError(string) => { eprintln!("OS Error in swap_buffers: {}", string) }
                     ContextError::IoError(error) => { eprintln!("IO Error in swap_buffers: {:?}", error) }
                     ContextError::ContextLost => { eprintln!("ContextLost Error in swap_buffers") }
+                    ContextError::FunctionUnavailable => { eprintln!("FunctionUnavailable Error in swap_buffers") }
                 }
             }
         });
