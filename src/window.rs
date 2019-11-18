@@ -1,5 +1,5 @@
 use boxer::boxes::{ValueBox, ValueBoxPointer};
-use glutin::{PossiblyCurrent, WindowedContext, ContextError};
+use glutin::{PossiblyCurrent, WindowedContext, ContextError, PixelFormat};
 use glutin::dpi::{LogicalSize, LogicalPosition, PhysicalSize};
 use boxer::CBox;
 use boxer::size::BoxerSizeF64;
@@ -74,6 +74,13 @@ pub fn glutin_windowed_context_get_framebuffer_size(_ptr_window: *mut ValueBox<W
             size.height = window_size.height;
         });
     });
+}
+
+#[no_mangle]
+pub fn glutin_windowed_context_get_pixel_format(_ptr_window: *mut ValueBox<WindowedContext<PossiblyCurrent>>) -> *mut ValueBox<PixelFormat> {
+    _ptr_window.with_not_null_return(std::ptr::null_mut(), |window| {
+        ValueBox::new(window.get_pixel_format()).into_raw()
+    })
 }
 
 #[no_mangle]
