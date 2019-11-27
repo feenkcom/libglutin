@@ -31,21 +31,27 @@ pub fn glutin_create_windowed_context(
         let window_builder = unsafe { *CBox::from_raw(_ptr_window_builder) };
         let context_builder= unsafe { *CBox::from_raw(_ptr_context_builder) };
 
-        println!("[Glutin] OpenGL Context: {:?}", context_builder);
-        println!("[Glutin] Primary monitor: {:?}", events_loop.primary_monitor());
-        println!("[Glutin] Window attributes: {:?}", window_builder);
+        if cfg!(debug_assertions) {
+            println!("[Glutin] OpenGL Context: {:?}", context_builder);
+            println!("[Glutin] Primary monitor: {:?}", events_loop.primary_monitor());
+            println!("[Glutin] Window attributes: {:?}", window_builder);
+        }
 
         match context_builder.build_windowed(window_builder, events_loop) {
             Ok(windowed_context) => {
                 match unsafe { windowed_context.make_current() } {
                     Ok(windowed_context) => { ValueBox::new(windowed_context).into_raw() },
                     Err(err) => {
-                        println!("[Glutin] Could not create context {:?}", err);
+                        if cfg!(debug_assertions) {
+                            println!("[Glutin] Could not create context {:?}", err);
+                        }
                         std::ptr::null_mut() }
                 }
             },
             Err(err) => {
-                println!("[Glutin] Could not create context {:?}", err);
+                if cfg!(debug_assertions) {
+                    println!("[Glutin] Could not create context {:?}", err);
+                }
                 std::ptr::null_mut()
             }
         }
@@ -55,7 +61,7 @@ pub fn glutin_create_windowed_context(
 #[no_mangle]
 pub fn glutin_create_headless_context(
         _ptr_events_loop: *mut EventLoop<()>,
-        _ptr_context_builder: *mut ContextBuilder<NotCurrent>) -> *mut Context<NotCurrent> {
+        _ptr_context_builder: *mut ContextBuilder<NotCurrent>) -> *mut ValueBox<Context<NotCurrent>> {
 
      if _ptr_events_loop.is_null() {
         eprintln!("[glutin_create_windowed_context] Event loop is null");
@@ -71,13 +77,17 @@ pub fn glutin_create_headless_context(
         // we consume context_builder here
         let context_builder= unsafe { *CBox::from_raw(_ptr_context_builder) };
 
-        println!("[Glutin] OpenGL Headless Context: {:?}", context_builder);
-        println!("[Glutin] Primary monitor: {:?}", events_loop.primary_monitor());
+        if cfg!(debug_assertions) {
+            println!("[Glutin] OpenGL Headless Context: {:?}", context_builder);
+            println!("[Glutin] Primary monitor: {:?}", events_loop.primary_monitor());
+        }
 
         match context_builder.build_headless(events_loop, PhysicalSize::new(1., 1.)) {
-            Ok(context) => CBox::into_raw(context),
+            Ok(context) => ValueBox::new(context).into_raw(),
             Err(err) => {
-                println!("[Glutin] Could not create headless context {:?}", err);
+                if cfg!(debug_assertions) {
+                    eprintln!("[Glutin] Could not create headless context {:?}", err);
+                }
                 std::ptr::null_mut()
             }
         }
