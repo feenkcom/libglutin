@@ -1,4 +1,3 @@
-#![feature(in_band_lifetimes)]
 #![allow(non_snake_case)]
 
 extern crate boxer;

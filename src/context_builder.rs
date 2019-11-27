@@ -14,7 +14,7 @@ pub fn glutin_context_builder_default<'a>() -> *mut ValueBox<ContextBuilder<'a, 
 
 #[no_mangle]
 pub fn glutin_context_builder_with_gl_then_gles(
-    mut _ptr_context_builder: *mut ValueBox<ContextBuilder<'a, NotCurrent>>,
+    mut _ptr_context_builder: *mut ValueBox<ContextBuilder<NotCurrent>>,
     gl_major: u8,
     gl_minor: u8,
     gles_major: u8,
@@ -32,7 +32,7 @@ pub fn glutin_context_builder_with_gl_then_gles(
 
 #[no_mangle]
 pub fn glutin_context_builder_with_gl_latest(
-    mut _ptr_context_builder: *mut ValueBox<ContextBuilder<'a, NotCurrent>>,
+    mut _ptr_context_builder: *mut ValueBox<ContextBuilder<NotCurrent>>,
 ) {
     _ptr_context_builder
         .with_not_null_value_mutate_consumed(|builder| builder.with_gl(GlRequest::Latest))
@@ -40,7 +40,7 @@ pub fn glutin_context_builder_with_gl_latest(
 
 #[no_mangle]
 pub fn glutin_context_builder_with_gl_profile_core(
-    mut _ptr_context_builder: *mut ValueBox<ContextBuilder<'a, NotCurrent>>,
+    mut _ptr_context_builder: *mut ValueBox<ContextBuilder<NotCurrent>>,
 ) {
     _ptr_context_builder
         .with_not_null_value_mutate_consumed(|builder| builder.with_gl_profile(GlProfile::Core))
@@ -48,7 +48,7 @@ pub fn glutin_context_builder_with_gl_profile_core(
 
 #[no_mangle]
 pub fn glutin_context_builder_with_multisampling(
-    mut _ptr_context_builder: *mut ValueBox<ContextBuilder<'a, NotCurrent>>,
+    mut _ptr_context_builder: *mut ValueBox<ContextBuilder<NotCurrent>>,
     samples: u16,
 ) {
     _ptr_context_builder
@@ -57,7 +57,7 @@ pub fn glutin_context_builder_with_multisampling(
 
 #[no_mangle]
 pub fn glutin_context_builder_with_depth_buffer(
-    mut _ptr_context_builder: *mut ValueBox<ContextBuilder<'a, NotCurrent>>,
+    mut _ptr_context_builder: *mut ValueBox<ContextBuilder<NotCurrent>>,
     bits: u8,
 ) {
     _ptr_context_builder
@@ -66,7 +66,7 @@ pub fn glutin_context_builder_with_depth_buffer(
 
 #[no_mangle]
 pub fn glutin_context_builder_with_stencil_buffer(
-    mut _ptr_context_builder: *mut ValueBox<ContextBuilder<'a, NotCurrent>>,
+    mut _ptr_context_builder: *mut ValueBox<ContextBuilder<NotCurrent>>,
     bits: u8,
 ) {
     _ptr_context_builder
@@ -75,7 +75,7 @@ pub fn glutin_context_builder_with_stencil_buffer(
 
 #[no_mangle]
 pub fn glutin_context_builder_with_pixel_format(
-    mut _ptr_context_builder: *mut ValueBox<ContextBuilder<'a, NotCurrent>>,
+    mut _ptr_context_builder: *mut ValueBox<ContextBuilder<NotCurrent>>,
     color_bits: u8,
     alpha_bits: u8,
 ) {
@@ -86,7 +86,7 @@ pub fn glutin_context_builder_with_pixel_format(
 
 #[no_mangle]
 pub fn glutin_context_builder_with_vsync(
-    mut _ptr_context_builder: *mut ValueBox<ContextBuilder<'a, NotCurrent>>,
+    mut _ptr_context_builder: *mut ValueBox<ContextBuilder<NotCurrent>>,
     vsync: bool,
 ) {
     _ptr_context_builder.with_not_null_value_mutate_consumed(|builder| builder.with_vsync(vsync))
@@ -94,7 +94,7 @@ pub fn glutin_context_builder_with_vsync(
 
 #[no_mangle]
 pub fn glutin_context_builder_with_srgb(
-    mut _ptr_context_builder: *mut ValueBox<ContextBuilder<'a, NotCurrent>>,
+    mut _ptr_context_builder: *mut ValueBox<ContextBuilder<NotCurrent>>,
     srgb_enabled: bool,
 ) {
     _ptr_context_builder
@@ -103,7 +103,7 @@ pub fn glutin_context_builder_with_srgb(
 
 #[no_mangle]
 pub fn glutin_context_builder_with_double_buffer(
-    mut _ptr_context_builder: *mut ValueBox<ContextBuilder<'a, NotCurrent>>,
+    mut _ptr_context_builder: *mut ValueBox<ContextBuilder<NotCurrent>>,
     double_buffer_enabled: bool,
 ) {
     _ptr_context_builder.with_not_null_value_mutate_consumed(|builder| {
@@ -113,7 +113,7 @@ pub fn glutin_context_builder_with_double_buffer(
 
 #[no_mangle]
 pub fn glutin_context_builder_get_pixel_format_requirements(
-    _ptr_context_builder: *mut ValueBox<ContextBuilder<'a, NotCurrent>>,
+    _ptr_context_builder: *mut ValueBox<ContextBuilder<NotCurrent>>,
 ) -> *mut ValueBox<PixelFormatRequirements> {
     _ptr_context_builder.with_not_null_return(std::ptr::null_mut(), |builder| {
         ValueBox::new(builder.pf_reqs.clone()).into_raw()
