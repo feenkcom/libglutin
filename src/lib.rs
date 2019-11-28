@@ -13,7 +13,6 @@ pub mod events;
 pub mod opengl;
 pub mod pixel_format;
 pub mod pixel_format_requirements;
-pub mod structs;
 pub mod window;
 pub mod window_builder;
 
