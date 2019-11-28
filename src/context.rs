@@ -3,7 +3,7 @@ use boxer::CBox;
 use glutin::dpi::PhysicalSize;
 use glutin::event_loop::EventLoop;
 use glutin::window::WindowBuilder;
-use glutin::{Context, ContextBuilder, NotCurrent, PossiblyCurrent, WindowedContext};
+use glutin::{Context, ContextBuilder, NotCurrent, PossiblyCurrent, WindowedContext, ContextError};
 
 #[no_mangle]
 pub fn glutin_create_windowed_context(
@@ -112,6 +112,37 @@ pub fn glutin_try_headless_context(
         context.drop();
         true
     };
+}
+
+#[no_mangle]
+pub fn glutin_context_make_current(mut _ptr: *mut ValueBox<Context<PossiblyCurrent>>) {
+    _ptr.with_value_and_box_consumed(|window, value_box| {
+        let context: Context<PossiblyCurrent>;
+
+        match unsafe { window.make_current() } {
+            Ok(new_context) => { context = new_context },
+            Err((old_context, err)) => {
+                context = old_context;
+                match err {
+                    ContextError::OsError(string) => { eprintln!("OS Error in make_current: {}", string) },
+                    ContextError::IoError(error)=> { eprintln!("IO Error in make_current: {:?}", error) },
+                    ContextError::ContextLost => { eprintln!("ContextLost Error in make_current") }
+                    ContextError::FunctionUnavailable => { eprintln!("FunctionUnavailable Error in make_current") }
+                }
+            }
+        }
+        unsafe { value_box.mutate(context); };
+    });
+}
+
+#[no_mangle]
+pub fn glutin_context_is_current(_ptr_context: *mut ValueBox<Context<PossiblyCurrent>>) -> bool {
+    _ptr_context.with_not_null_return(false, |context | context.is_current())
+}
+
+#[no_mangle]
+pub fn glutin_destroy_context(_ptr: *mut ValueBox<Context<PossiblyCurrent>>) {
+    _ptr.drop();
 }
 
 #[no_mangle]

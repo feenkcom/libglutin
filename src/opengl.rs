@@ -31,6 +31,25 @@ pub fn glutin_windowed_context_load_gl(_ptr_window: *mut ValueBox<glutin::Window
 }
 
 #[no_mangle]
+pub fn glutin_context_load_gl(_ptr_context: *mut ValueBox<glutin::Context<glutin::PossiblyCurrent>>) -> *mut ValueBox<Rc<dyn gl::Gl>> {
+    _ptr_context.with(|context| {
+        let mut gl: std::rc::Rc<(dyn gleam::gl::Gl + 'static)> = match context.get_api() {
+            glutin::Api::OpenGl => unsafe {
+                gl::GlFns::load_with(|symbol| context.get_proc_address(symbol) as *const _)
+            },
+            glutin::Api::OpenGlEs => unsafe {
+                gl::GlesFns::load_with(|symbol| context.get_proc_address(symbol) as *const _)
+            },
+            glutin::Api::WebGl => unimplemented!(),
+        };
+
+        gl = gl::ErrorReactingGl::wrap(gl, error_callback);
+
+        ValueBox::new(gl).into_raw()
+    })
+}
+
+#[no_mangle]
 pub fn glutin_gl_drop(_ptr: *mut ValueBox<Rc<dyn gl::Gl>>) {
     _ptr.drop()
 }
