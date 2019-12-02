@@ -63,6 +63,11 @@ pub fn glutin_windowed_context_is_current(_ptr_window: *mut ValueBox<WindowedCon
 }
 
 #[no_mangle]
+pub fn glutin_windowed_context_get_hdpi_factor(_ptr_window: *mut ValueBox<WindowedContext<PossiblyCurrent>>) -> f64 {
+    _ptr_window.with_not_null_return(1.0, |window| window.window().hidpi_factor())
+}
+
+#[no_mangle]
 pub fn glutin_windowed_context_get_framebuffer_size(_ptr_window: *mut ValueBox<WindowedContext<PossiblyCurrent>>, _ptr_size: *mut ValueBox<BoxerSizeF64>) {
     _ptr_window.with_not_null(|window| {
         _ptr_size.with_not_null(|size| {
