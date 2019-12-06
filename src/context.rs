@@ -4,6 +4,8 @@ use glutin::dpi::PhysicalSize;
 use glutin::event_loop::EventLoop;
 use glutin::window::WindowBuilder;
 use glutin::{Context, ContextBuilder, NotCurrent, PossiblyCurrent, WindowedContext, ContextError};
+use boxer::string::{BoxerString, BoxerStringPointer};
+use std::os::raw::c_void;
 
 #[no_mangle]
 pub fn glutin_create_windowed_context(
@@ -138,6 +140,15 @@ pub fn glutin_context_make_current(mut _ptr: *mut ValueBox<Context<PossiblyCurre
 #[no_mangle]
 pub fn glutin_context_is_current(_ptr_context: *mut ValueBox<Context<PossiblyCurrent>>) -> bool {
     _ptr_context.with_not_null_return(false, |context | context.is_current())
+}
+
+#[no_mangle]
+pub fn glutin_context_get_proc_address(_ptr_context: *mut ValueBox<Context<PossiblyCurrent>>, _ptr_symbol: *mut BoxerString) -> *const c_void {
+    _ptr_context.with_not_null_return(std::ptr::null(), |context| {
+        _ptr_symbol.with(|symbol| {
+            context.get_proc_address(symbol.to_string().as_str())
+        })
+    })
 }
 
 #[no_mangle]

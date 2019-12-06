@@ -5,9 +5,10 @@ use boxer::CBox;
 use boxer::size::BoxerSizeF64;
 use boxer::number::BoxerUint128;
 use glutin_convert_window_id;
-use boxer::string::BoxerString;
+use boxer::string::{BoxerString, BoxerStringPointer};
 use enums::GlutinCursorIcon;
 use boxer::point::BoxerPointF64;
+use std::os::raw::c_void;
 
 
 ///////////////////////////////////////////////////////////////////////////////////////
@@ -50,6 +51,15 @@ pub fn glutin_windowed_context_swap_buffers(_ptr_window: *mut ValueBox<WindowedC
                 }
             }
         });
+}
+
+#[no_mangle]
+pub fn glutin_windowed_context_get_proc_address(_ptr_window: *mut ValueBox<WindowedContext<PossiblyCurrent>>, _ptr_symbol: *mut BoxerString) -> *const c_void {
+    _ptr_window.with_not_null_return(std::ptr::null(), |window| {
+        _ptr_symbol.with(|symbol| {
+            window.get_proc_address(symbol.to_string().as_str())
+        })
+    })
 }
 
 #[no_mangle]
