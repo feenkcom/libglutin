@@ -1,7 +1,6 @@
 #![allow(non_snake_case)]
 
 extern crate boxer;
-extern crate gleam;
 extern crate glutin;
 extern crate libc;
 
@@ -10,7 +9,6 @@ pub mod context_builder;
 pub mod enums;
 pub mod event_loop;
 pub mod events;
-pub mod opengl;
 pub mod pixel_format;
 pub mod pixel_format_requirements;
 pub mod window;
@@ -31,10 +29,35 @@ use boxer::CBox;
 use glutin::window::WindowId;
 
 use std::mem::transmute_copy;
+use glutin::Api;
 
 ///////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////// L I B R A R Y /////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////
+
+/// All APIs related to OpenGL that you can possibly get while using glutin.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[repr(u8)]
+pub enum ContextApi {
+    /// The classical OpenGL. Available on Windows, Unix operating systems,
+    /// OS/X.
+    OpenGl,
+    /// OpenGL embedded system. Available on Unix operating systems, Android.
+    OpenGlEs,
+    /// OpenGL for the web. Very similar to OpenGL ES.
+    WebGl,
+    Unknown,
+}
+
+impl From<Api> for ContextApi {
+    fn from(api: Api) -> Self {
+        match api {
+            Api::OpenGl => { ContextApi::OpenGl },
+            Api::OpenGlEs => { ContextApi::OpenGlEs },
+            Api::WebGl => { ContextApi::WebGl },
+        }
+    }
+}
 
 #[no_mangle]
 pub fn glutin_test() -> bool {

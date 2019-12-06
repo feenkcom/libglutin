@@ -4,7 +4,7 @@ use glutin::dpi::{LogicalSize, LogicalPosition, PhysicalSize};
 use boxer::CBox;
 use boxer::size::BoxerSizeF64;
 use boxer::number::BoxerUint128;
-use glutin_convert_window_id;
+use ::{glutin_convert_window_id, ContextApi};
 use boxer::string::{BoxerString, BoxerStringPointer};
 use enums::GlutinCursorIcon;
 use boxer::point::BoxerPointF64;
@@ -60,6 +60,11 @@ pub fn glutin_windowed_context_get_proc_address(_ptr_window: *mut ValueBox<Windo
             window.get_proc_address(symbol.to_string().as_str())
         })
     })
+}
+
+#[no_mangle]
+pub fn glutin_windowed_context_get_api(_ptr_context: *mut ValueBox<WindowedContext<PossiblyCurrent>>) -> ContextApi {
+    _ptr_context.with_not_null_return(ContextApi::Unknown, |context | context.get_api().into())
 }
 
 #[no_mangle]

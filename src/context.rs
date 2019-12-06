@@ -6,6 +6,7 @@ use glutin::window::WindowBuilder;
 use glutin::{Context, ContextBuilder, NotCurrent, PossiblyCurrent, WindowedContext, ContextError};
 use boxer::string::{BoxerString, BoxerStringPointer};
 use std::os::raw::c_void;
+use ContextApi;
 
 #[no_mangle]
 pub fn glutin_create_windowed_context(
@@ -140,6 +141,11 @@ pub fn glutin_context_make_current(mut _ptr: *mut ValueBox<Context<PossiblyCurre
 #[no_mangle]
 pub fn glutin_context_is_current(_ptr_context: *mut ValueBox<Context<PossiblyCurrent>>) -> bool {
     _ptr_context.with_not_null_return(false, |context | context.is_current())
+}
+
+#[no_mangle]
+pub fn glutin_context_get_api(_ptr_context: *mut ValueBox<Context<PossiblyCurrent>>) -> ContextApi {
+    _ptr_context.with_not_null_return(ContextApi::Unknown, |context | context.get_api().into())
 }
 
 #[no_mangle]
