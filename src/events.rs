@@ -1,7 +1,7 @@
 use boxer::number::BoxerUint128;
 
+use glutin::dpi::{LogicalPosition, PhysicalPosition, PhysicalSize};
 use glutin::event::*;
-use glutin::dpi::{LogicalSize, LogicalPosition};
 use glutin_convert_window_id;
 
 use std::mem::transmute;
@@ -19,7 +19,8 @@ pub struct GlutinEvent {
     received_character: GlutinEventReceivedCharacter,
     window_resized: GlutinWindowResizedEvent,
     window_moved: GlutinWindowMovedEvent,
-    window_focused: GlutinWindowFocusedEvent
+    window_focused: GlutinWindowFocusedEvent,
+    modifiers: GlutinEventModifiersState,
 }
 
 #[derive(Debug, Default)]
@@ -30,7 +31,7 @@ pub struct GlutinTouchEvent {
     x: f64,
     y: f64,
     /// unique identifier of a finger.
-    id: u64
+    id: u64,
 }
 
 #[derive(Debug, Default)]
@@ -39,7 +40,6 @@ pub struct GlutinMouseWheelEvent {
     device_id: i64,
     phase: GlutinEventTouchPhase,
     delta: GlutinMouseScrollDelta,
-    modifiers: GlutinEventModifiersState
 }
 
 #[derive(Debug, Copy, Clone, Default)]
@@ -48,36 +48,34 @@ pub struct GlutinMouseInputEvent {
     device_id: i64,
     state: GlutinEventInputElementState,
     button: GlutinEventMouseButton,
-    modifiers: GlutinEventModifiersState
 }
 
 #[derive(Debug, Copy, Clone, Default)]
 #[repr(C)]
 pub struct GlutinCursorMovedEvent {
     device_id: i64,
-    x: f64,
-    y: f64,
-    modifiers: GlutinEventModifiersState
+    x: i32,
+    y: i32,
 }
 
 #[derive(Debug, Copy, Clone, Default)]
 #[repr(C)]
 pub struct GlutinWindowResizedEvent {
-    width: f64,
-    height: f64
+    width: u32,
+    height: u32,
 }
 
 #[derive(Debug, Copy, Clone, Default)]
 #[repr(C)]
 pub struct GlutinWindowMovedEvent {
-    x: f64,
-    y: f64
+    x: u32,
+    y: u32,
 }
 
 #[derive(Debug, Copy, Clone, Default)]
 #[repr(C)]
 pub struct GlutinWindowFocusedEvent {
-    is_focused: bool
+    is_focused: bool,
 }
 
 #[derive(Debug, Copy, Clone)]
@@ -88,17 +86,20 @@ pub struct GlutinEventKeyboardInput {
     state: GlutinEventInputElementState,
     has_virtual_keycode: bool,
     virtual_keycode: VirtualKeyCode,
-    modifiers: GlutinEventModifiersState
+    is_synthetic: bool
 }
 
 impl Default for GlutinEventKeyboardInput {
-    fn default() -> Self { GlutinEventKeyboardInput {
-        device_id: Default::default(),
-        scan_code: Default::default(),
-        state: Default::default(),
-        has_virtual_keycode: Default::default(),
-        virtual_keycode: VirtualKeyCode::Unlabeled,
-        modifiers: Default::default() } }
+    fn default() -> Self {
+        GlutinEventKeyboardInput {
+            device_id: Default::default(),
+            scan_code: Default::default(),
+            state: Default::default(),
+            has_virtual_keycode: Default::default(),
+            virtual_keycode: VirtualKeyCode::Unlabeled,
+            is_synthetic: false
+        }
+    }
 }
 
 #[derive(Debug, Copy, Clone, Default)]
@@ -108,7 +109,7 @@ pub struct GlutinEventReceivedCharacter {
     byte_1: u8,
     byte_2: u8,
     byte_3: u8,
-    byte_4: u8
+    byte_4: u8,
 }
 
 #[derive(Debug, Copy, Clone, Default)]
@@ -116,7 +117,7 @@ pub struct GlutinEventReceivedCharacter {
 pub struct GlutinMouseScrollDelta {
     delta_type: GlutinEventMouseScrollDeltaType,
     x: f64,
-    y: f64
+    y: f64,
 }
 
 #[derive(Default, Debug, Hash, PartialEq, Eq, Clone, Copy)]
@@ -131,21 +132,19 @@ pub struct GlutinEventModifiersState {
     /// The "logo" key
     ///
     /// This is the "windows" key on PC and "command" key on Mac.
-    logo: bool
+    logo: bool,
 }
 
 #[derive(Debug, Copy, Clone, Default)]
 #[repr(C)]
 pub struct GlutinEventMouseButton {
     button_type: GlutinEventMouseButtonType,
-    button_code: u8
+    button_code: u8,
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////// S T R U C T S  ////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////
-
-
 
 #[derive(Debug, Copy, Clone)]
 #[repr(u32)]
@@ -158,7 +157,9 @@ pub enum GlutinEventMouseButtonType {
 }
 
 impl Default for GlutinEventMouseButtonType {
-    fn default() -> Self { GlutinEventMouseButtonType::Unknown }
+    fn default() -> Self {
+        GlutinEventMouseButtonType::Unknown
+    }
 }
 
 #[derive(Debug, Copy, Clone, PartialEq)]
@@ -182,18 +183,21 @@ pub enum GlutinEventType {
     WindowEventMouseInput,
     WindowEventTouchpadPressure,
     WindowEventAxisMotion,
-    WindowEventRedrawRequested,
     WindowEventTouch,
     WindowEventHiDpiFactorChanged,
     NewEvents,
-    EventsCleared,
+    MainEventsCleared,
     LoopDestroyed,
     Suspended,
-    Resumed
+    Resumed,
+    RedrawRequested,
+    ModifiersChanged,
 }
 
 impl Default for GlutinEventType {
-    fn default() -> Self { GlutinEventType::Unknown }
+    fn default() -> Self {
+        GlutinEventType::Unknown
+    }
 }
 
 #[derive(Debug, Copy, Clone)]
@@ -203,11 +207,13 @@ pub enum GlutinEventTouchPhase {
     Started,
     Moved,
     Ended,
-    Cancelled
+    Cancelled,
 }
 
 impl Default for GlutinEventTouchPhase {
-    fn default() -> Self { GlutinEventTouchPhase::Unknown }
+    fn default() -> Self {
+        GlutinEventTouchPhase::Unknown
+    }
 }
 
 #[derive(Debug, Copy, Clone)]
@@ -219,7 +225,9 @@ pub enum GlutinEventMouseScrollDeltaType {
 }
 
 impl Default for GlutinEventMouseScrollDeltaType {
-    fn default() -> Self { GlutinEventMouseScrollDeltaType::Unknown }
+    fn default() -> Self {
+        GlutinEventMouseScrollDeltaType::Unknown
+    }
 }
 
 #[derive(Debug, Copy, Clone)]
@@ -227,7 +235,7 @@ impl Default for GlutinEventMouseScrollDeltaType {
 pub enum GlutinEventInputElementState {
     Unknown,
     Pressed,
-    Released
+    Released,
 }
 
 #[derive(Debug, Copy, Clone)]
@@ -245,13 +253,18 @@ pub enum GlutinControlFlow {
 }
 
 impl Default for GlutinEventInputElementState {
-    fn default() -> Self { GlutinEventInputElementState::Unknown }
+    fn default() -> Self {
+        GlutinEventInputElementState::Unknown
+    }
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////// E V E N T S ////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////
-pub(crate) fn glutin_events_loop_process_event(global_event: glutin::event::Event<()>, c_event: &mut GlutinEvent) -> bool {
+pub(crate) fn glutin_events_loop_process_event(
+    global_event: glutin::event::Event<()>,
+    c_event: &mut GlutinEvent,
+) -> bool {
     c_event.event_type = GlutinEventType::Unknown;
     let mut result = true;
 
@@ -261,80 +274,123 @@ pub(crate) fn glutin_events_loop_process_event(global_event: glutin::event::Even
             c_event.window_id.clone_from(&id);
 
             match event {
-                WindowEvent::Resized(LogicalSize { width, height }) => {
+                WindowEvent::Resized(PhysicalSize { width, height }) => {
                     c_event.event_type = GlutinEventType::WindowEventResized;
                     c_event.window_resized.width = width;
                     c_event.window_resized.height = height;
-                },
+                }
                 WindowEvent::Focused(is_focused) => {
                     c_event.event_type = GlutinEventType::WindowEventFocused;
                     c_event.window_focused.is_focused = is_focused;
-                },
-                WindowEvent::Moved(LogicalPosition { x, y }) => {
+                }
+                WindowEvent::Moved(PhysicalPosition { x, y }) => {
                     c_event.event_type = GlutinEventType::WindowEventMoved;
                     c_event.window_moved.x = x;
                     c_event.window_moved.y = y;
-                },
+                }
                 WindowEvent::CloseRequested => {
                     c_event.event_type = GlutinEventType::WindowEventCloseRequested;
-                },
+                }
                 WindowEvent::Destroyed => {
                     c_event.event_type = GlutinEventType::WindowEventDestroyed;
-                },
-                WindowEvent::RedrawRequested => {
-                    c_event.event_type = GlutinEventType::WindowEventRedrawRequested;
-                },
-                WindowEvent::Touch(Touch {device_id, phase, location, force: _, id}) => {
+                }
+                WindowEvent::Touch(Touch {
+                    device_id,
+                    phase,
+                    location,
+                    force: _,
+                    id,
+                }) => {
                     glutin_event_loop_process_touch(c_event, device_id, phase, location, id);
-                },
-                WindowEvent::MouseInput{ device_id, state, button, modifiers } => {
-                    glutin_event_loop_process_mouse_input(c_event, device_id, state, button, modifiers);
-                },
-                WindowEvent::CursorMoved { device_id, position, modifiers } => {
-                    glutin_event_loop_process_cursor_moved(c_event, device_id, position, modifiers);
-                },
-                WindowEvent::MouseWheel { device_id, delta, phase, modifiers } => {
-                    glutin_event_loop_process_mouse_wheel(c_event, device_id, delta, phase, modifiers);
-                },
-                WindowEvent::KeyboardInput { device_id, input } => {
-                    glutin_event_loop_process_keyboard_input (c_event, device_id, input);
-                },
-                WindowEvent::ReceivedCharacter (character) => {
-                    glutin_event_loop_process_received_character (c_event, character);
-                },
-                _ => ({result = false})
+                }
+                WindowEvent::MouseInput {
+                    device_id,
+                    state,
+                    button,
+                    ..
+                } => {
+                    glutin_event_loop_process_mouse_input(
+                        c_event, device_id, state, button
+                    );
+                }
+                WindowEvent::CursorMoved {
+                    device_id,
+                    position,
+                    ..
+                } => {
+                    glutin_event_loop_process_cursor_moved(c_event, device_id, position);
+                }
+                WindowEvent::MouseWheel {
+                    device_id,
+                    delta,
+                    phase,
+                    ..
+                } => {
+                    glutin_event_loop_process_mouse_wheel(
+                        c_event, device_id, delta, phase
+                    );
+                }
+                WindowEvent::KeyboardInput { device_id, input, is_synthetic } => {
+                    glutin_event_loop_process_keyboard_input(c_event, device_id, input, is_synthetic);
+                }
+                WindowEvent::ReceivedCharacter(character) => {
+                    glutin_event_loop_process_received_character(c_event, character);
+                }
+                _ => ({ result = false }),
             }
+        }
+
+        glutin::event::Event::DeviceEvent { device_id: _, event } => match event {
+            DeviceEvent::ModifiersChanged(modifiers) => {
+                c_event.event_type = GlutinEventType::ModifiersChanged;
+                c_event.modifiers.alt = modifiers.alt();
+                c_event.modifiers.ctrl = modifiers.ctrl();
+                c_event.modifiers.logo = modifiers.logo();
+                c_event.modifiers.shift = modifiers.shift();
+            }
+            _ => ({ result = false }),
         },
+
         glutin::event::Event::NewEvents(_start_cause) => {
             c_event.event_type = GlutinEventType::NewEvents;
-        },
-        glutin::event::Event::EventsCleared => {
-            c_event.event_type = GlutinEventType::EventsCleared;
-        },
+        }
+        glutin::event::Event::MainEventsCleared => {
+            c_event.event_type = GlutinEventType::MainEventsCleared;
+        }
         glutin::event::Event::LoopDestroyed => {
             c_event.event_type = GlutinEventType::LoopDestroyed;
-        },
+        }
+        glutin::event::Event::RedrawRequested(window_id) => {
+            c_event.event_type = GlutinEventType::RedrawRequested;
+            let id: BoxerUint128 = glutin_convert_window_id(window_id);
+            c_event.window_id.clone_from(&id);
+        }
         glutin::event::Event::Suspended => {
             c_event.event_type = GlutinEventType::Suspended;
-        },
+        }
         glutin::event::Event::Resumed => {
             c_event.event_type = GlutinEventType::Resumed;
-        },
-        _ => ({result = false})
+        }
+        _ => ({ result = false }),
     }
     result
 }
 
-fn glutin_event_loop_process_mouse_wheel(c_event: &mut GlutinEvent, device_id: DeviceId, delta: MouseScrollDelta, phase: TouchPhase, modifiers: ModifiersState) {
+fn glutin_event_loop_process_mouse_wheel(
+    c_event: &mut GlutinEvent,
+    device_id: DeviceId,
+    delta: MouseScrollDelta,
+    phase: TouchPhase,
+) {
     c_event.event_type = GlutinEventType::WindowEventMouseWheel;
-    c_event.mouse_wheel.device_id = unsafe { transmute(&device_id)};
+    c_event.mouse_wheel.device_id = unsafe { transmute(&device_id) };
 
     match delta {
-        MouseScrollDelta::LineDelta(x,y) => {
+        MouseScrollDelta::LineDelta(x, y) => {
             c_event.mouse_wheel.delta.delta_type = GlutinEventMouseScrollDeltaType::LineDelta;
             c_event.mouse_wheel.delta.x = x as f64;
             c_event.mouse_wheel.delta.y = y as f64;
-        },
+        }
         MouseScrollDelta::PixelDelta(LogicalPosition { x, y }) => {
             c_event.mouse_wheel.delta.delta_type = GlutinEventMouseScrollDeltaType::PixelDelta;
             c_event.mouse_wheel.delta.x = x;
@@ -342,30 +398,31 @@ fn glutin_event_loop_process_mouse_wheel(c_event: &mut GlutinEvent, device_id: D
         }
     }
 
-    c_event.mouse_wheel.modifiers.alt = modifiers.alt;
-    c_event.mouse_wheel.modifiers.ctrl = modifiers.ctrl;
-    c_event.mouse_wheel.modifiers.logo = modifiers.logo;
-    c_event.mouse_wheel.modifiers.shift = modifiers.shift;
-
     match phase {
         TouchPhase::Started => {
             c_event.mouse_wheel.phase = GlutinEventTouchPhase::Started;
-        },
+        }
         TouchPhase::Moved => {
             c_event.mouse_wheel.phase = GlutinEventTouchPhase::Moved;
-        },
+        }
         TouchPhase::Ended => {
             c_event.mouse_wheel.phase = GlutinEventTouchPhase::Ended;
-        },
+        }
         TouchPhase::Cancelled => {
             c_event.mouse_wheel.phase = GlutinEventTouchPhase::Cancelled;
-        },
+        }
     }
 }
 
-fn glutin_event_loop_process_touch(c_event: &mut GlutinEvent, device_id: DeviceId, phase: TouchPhase, location: LogicalPosition, id: u64) {
+fn glutin_event_loop_process_touch(
+    c_event: &mut GlutinEvent,
+    device_id: DeviceId,
+    phase: TouchPhase,
+    location: PhysicalPosition<f64>,
+    id: u64,
+) {
     c_event.event_type = GlutinEventType::WindowEventTouch;
-    c_event.touch.device_id = unsafe { transmute(&device_id)};
+    c_event.touch.device_id = unsafe { transmute(&device_id) };
     c_event.touch.x = location.x;
     c_event.touch.y = location.y;
     c_event.touch.id = id;
@@ -373,33 +430,34 @@ fn glutin_event_loop_process_touch(c_event: &mut GlutinEvent, device_id: DeviceI
     match phase {
         TouchPhase::Started => {
             c_event.touch.phase = GlutinEventTouchPhase::Started;
-        },
+        }
         TouchPhase::Moved => {
             c_event.touch.phase = GlutinEventTouchPhase::Moved;
-
-        },
+        }
         TouchPhase::Ended => {
             c_event.touch.phase = GlutinEventTouchPhase::Ended;
-
-        },
+        }
         TouchPhase::Cancelled => {
             c_event.touch.phase = GlutinEventTouchPhase::Cancelled;
-
-        },
+        }
     }
 }
 
-fn glutin_event_loop_process_mouse_input(c_event: &mut GlutinEvent, device_id: DeviceId, state: ElementState, button: MouseButton, modifiers: ModifiersState) {
+fn glutin_event_loop_process_mouse_input(
+    c_event: &mut GlutinEvent,
+    device_id: DeviceId,
+    state: ElementState,
+    button: MouseButton,
+) {
     c_event.event_type = GlutinEventType::WindowEventMouseInput;
-    c_event.mouse_input.device_id = unsafe { transmute(&device_id)};
+    c_event.mouse_input.device_id = unsafe { transmute(&device_id) };
 
     match state {
         ElementState::Released => {
             c_event.mouse_input.state = GlutinEventInputElementState::Released;
-        },
+        }
         ElementState::Pressed => {
             c_event.mouse_input.state = GlutinEventInputElementState::Pressed;
-
         }
     }
 
@@ -407,50 +465,49 @@ fn glutin_event_loop_process_mouse_input(c_event: &mut GlutinEvent, device_id: D
         MouseButton::Left => {
             c_event.mouse_input.button.button_type = GlutinEventMouseButtonType::Left;
             c_event.mouse_input.button.button_code = 0;
-        },
+        }
         MouseButton::Right => {
             c_event.mouse_input.button.button_type = GlutinEventMouseButtonType::Right;
             c_event.mouse_input.button.button_code = 1;
-        },
+        }
         MouseButton::Middle => {
             c_event.mouse_input.button.button_type = GlutinEventMouseButtonType::Middle;
             c_event.mouse_input.button.button_code = 2;
-        },
+        }
         MouseButton::Other(code) => {
             c_event.mouse_input.button.button_type = GlutinEventMouseButtonType::Other;
             c_event.mouse_input.button.button_code = code;
-        },
+        }
     }
-
-    c_event.mouse_input.modifiers.alt = modifiers.alt;
-    c_event.mouse_input.modifiers.ctrl = modifiers.ctrl;
-    c_event.mouse_input.modifiers.logo = modifiers.logo;
-    c_event.mouse_input.modifiers.shift = modifiers.shift;
 }
 
-fn glutin_event_loop_process_cursor_moved(c_event: &mut GlutinEvent, device_id: DeviceId, position: LogicalPosition, modifiers: ModifiersState) {
+fn glutin_event_loop_process_cursor_moved(
+    c_event: &mut GlutinEvent,
+    device_id: DeviceId,
+    position: PhysicalPosition<i32>,
+) {
     c_event.event_type = GlutinEventType::WindowEventCursorMoved;
-    c_event.cursor_moved.device_id = unsafe { transmute(&device_id)};
+    c_event.cursor_moved.device_id = unsafe { transmute(&device_id) };
 
     c_event.cursor_moved.x = position.x;
     c_event.cursor_moved.y = position.y;
-
-    c_event.cursor_moved.modifiers.alt = modifiers.alt;
-    c_event.cursor_moved.modifiers.ctrl = modifiers.ctrl;
-    c_event.cursor_moved.modifiers.logo = modifiers.logo;
-    c_event.cursor_moved.modifiers.shift = modifiers.shift;
 }
 
-fn glutin_event_loop_process_keyboard_input(c_event: &mut GlutinEvent, device_id: DeviceId, input: KeyboardInput) {
+fn glutin_event_loop_process_keyboard_input(
+    c_event: &mut GlutinEvent,
+    device_id: DeviceId,
+    input: KeyboardInput,
+    is_synthetic: bool
+) {
     c_event.event_type = GlutinEventType::WindowEventKeyboardInput;
-    c_event.keyboard_input.device_id = unsafe { transmute(&device_id)};
-
+    c_event.keyboard_input.device_id = unsafe { transmute(&device_id) };
+    c_event.keyboard_input.is_synthetic = is_synthetic;
     c_event.keyboard_input.scan_code = input.scancode;
 
     match input.state {
         ElementState::Released => {
             c_event.keyboard_input.state = GlutinEventInputElementState::Released;
-        },
+        }
         ElementState::Pressed => {
             c_event.keyboard_input.state = GlutinEventInputElementState::Pressed;
         }
@@ -465,14 +522,9 @@ fn glutin_event_loop_process_keyboard_input(c_event: &mut GlutinEvent, device_id
             c_event.keyboard_input.has_virtual_keycode = false;
         }
     }
-
-    c_event.keyboard_input.modifiers.alt = input.modifiers.alt;
-    c_event.keyboard_input.modifiers.ctrl = input.modifiers.ctrl;
-    c_event.keyboard_input.modifiers.logo = input.modifiers.logo;
-    c_event.keyboard_input.modifiers.shift = input.modifiers.shift;
 }
 
-fn glutin_event_loop_process_received_character (c_event: &mut GlutinEvent, character: char) {
+fn glutin_event_loop_process_received_character(c_event: &mut GlutinEvent, character: char) {
     c_event.event_type = GlutinEventType::WindowEventReceivedCharacter;
 
     let mut buffer = [0; 4];

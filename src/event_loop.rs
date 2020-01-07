@@ -69,5 +69,5 @@ fn glutin_primary_monitor_free(_ptr_monitor_id: *mut ValueBox<MonitorHandle>) {
 
 #[no_mangle]
 fn glutin_primary_monitor_get_hidpi_factor(_ptr_monitor_id: *mut ValueBox<MonitorHandle>) -> f64 {
-    _ptr_monitor_id.with_not_null_return(1.0, |monitor_id| monitor_id.hidpi_factor())
+    _ptr_monitor_id.with_not_null_return(1.0, |monitor_id| monitor_id.scale_factor())
 }

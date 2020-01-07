@@ -1,7 +1,6 @@
 #![cfg(target_os = "macos")]
 
 use glutin::platform::macos::WindowBuilderExtMacOS;
-use boxer::CBox;
 use glutin::window::WindowBuilder;
 use boxer::boxes::{ValueBox, ValueBoxPointer};
 

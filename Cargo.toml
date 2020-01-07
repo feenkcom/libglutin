@@ -4,12 +4,9 @@ version = "0.2.0"
 authors = ["Aliaksei Syrel <alex.syrel@gmail.com>"]
 
 [dependencies]
-glutin = "0.22.0-alpha5"
+glutin = "0.22.0"
 libc = "0.2.65"
 boxer = { git = "https://github.com/feenkcom/gtoolkit-boxer" }
-
-[patch.crates-io]
-winit = { git = "https://github.com/rust-windowing/winit.git", rev = "429bbfade0ee68f7d3f8ba89498984b72b805f13" }
 
 [lib]
 name = "Glutin"

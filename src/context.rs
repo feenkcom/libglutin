@@ -83,7 +83,7 @@ pub fn glutin_create_headless_context(
                 );
             }
 
-            match context_builder.build_headless(event_loop, PhysicalSize::new(1., 1.)) {
+            match context_builder.build_headless(event_loop, PhysicalSize::new(1, 1)) {
                 Ok(context) => ValueBox::new(context).into_raw(),
                 Err(err) => {
                     if cfg!(debug_assertions) {
@@ -96,19 +96,17 @@ pub fn glutin_create_headless_context(
     })
 }
 
+// I *do not* consume the context builder
 #[no_mangle]
 pub fn glutin_try_headless_context(
     _ptr_events_loop: *mut ValueBox<EventLoop<()>>,
     _ptr_context_builder: *mut ValueBox<ContextBuilder<NotCurrent>>,
 ) -> bool {
-    let builder_copy = _ptr_context_builder.with_value(|context_builder| ValueBox::new(context_builder.clone()).into_raw());
+    let builder_copy = _ptr_context_builder.with_value(|context_builder| ValueBox::new(context_builder).into_raw());
     let context = glutin_create_headless_context(_ptr_events_loop, builder_copy);
-    return if context.is_null() {
-        false
-    } else {
-        context.drop();
-        true
-    };
+    let is_valid = context.is_valid();
+    context.drop();
+    is_valid
 }
 
 #[no_mangle]
