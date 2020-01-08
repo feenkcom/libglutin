@@ -7,9 +7,7 @@ use glutin::{
 #[no_mangle]
 pub fn glutin_context_builder_default<'a>() -> *mut ValueBox<ContextBuilder<'a, NotCurrent>> {
     ValueBox::new(
-        ContextBuilder::new()
-            .with_vsync(false)
-            .with_gl_robustness(Robustness::TryRobustNoResetNotification),
+        ContextBuilder::new().with_gl_robustness(Robustness::TryRobustNoResetNotification),
     )
     .into_raw()
 }

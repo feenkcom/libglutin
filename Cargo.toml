@@ -4,7 +4,7 @@ version = "0.2.0"
 authors = ["Aliaksei Syrel <alex.syrel@gmail.com>"]
 
 [dependencies]
-glutin = "0.22.0"
+glutin = { git = "https://github.com/syrel/glutin" }
 libc = "0.2.65"
 boxer = { git = "https://github.com/feenkcom/gtoolkit-boxer" }
 
@@ -20,4 +20,3 @@ overflow-checks = true
 
 [profile.release]
 opt-level = 3
-debug-assertions = true
