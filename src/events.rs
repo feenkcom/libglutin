@@ -18,6 +18,7 @@ pub struct GlutinEvent {
     keyboard_input: GlutinEventKeyboardInput,
     received_character: GlutinEventReceivedCharacter,
     window_resized: GlutinWindowResizedEvent,
+    scale_factor: GlutinWindowScaleFactorChangedEvent,
     window_moved: GlutinWindowMovedEvent,
     window_focused: GlutinWindowFocusedEvent,
     modifiers: GlutinEventModifiersState,
@@ -61,6 +62,14 @@ pub struct GlutinCursorMovedEvent {
 #[derive(Debug, Copy, Clone, Default)]
 #[repr(C)]
 pub struct GlutinWindowResizedEvent {
+    width: u32,
+    height: u32,
+}
+
+#[derive(Debug, Copy, Clone, Default)]
+#[repr(C)]
+pub struct GlutinWindowScaleFactorChangedEvent {
+    scale_factor: f64,
     width: u32,
     height: u32,
 }
@@ -184,7 +193,7 @@ pub enum GlutinEventType {
     WindowEventTouchpadPressure,
     WindowEventAxisMotion,
     WindowEventTouch,
-    WindowEventHiDpiFactorChanged,
+    WindowEventScaleFactorChanged,
     NewEvents,
     MainEventsCleared,
     LoopDestroyed,
@@ -278,6 +287,12 @@ pub(crate) fn glutin_events_loop_process_event(
                     c_event.event_type = GlutinEventType::WindowEventResized;
                     c_event.window_resized.width = width;
                     c_event.window_resized.height = height;
+                }
+                WindowEvent::ScaleFactorChanged{scale_factor, new_inner_size} => {
+                    c_event.event_type = GlutinEventType::WindowEventScaleFactorChanged;
+                    c_event.scale_factor.scale_factor = scale_factor;
+                    c_event.scale_factor.width = new_inner_size.width;
+                    c_event.scale_factor.height = new_inner_size.height;
                 }
                 WindowEvent::Focused(is_focused) => {
                     c_event.event_type = GlutinEventType::WindowEventFocused;
