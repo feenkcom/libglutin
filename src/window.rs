@@ -1,11 +1,11 @@
 use boxer::boxes::{ValueBox, ValueBoxPointer};
 use boxer::number::BoxerUint128;
 use boxer::point::BoxerPointI32;
-use boxer::size::{BoxerSizeF64, BoxerSizeU32};
+use boxer::size::{BoxerSizeU32};
 use boxer::string::{BoxerString, BoxerStringPointer};
 use boxer::CBox;
 use enums::GlutinCursorIcon;
-use glutin::dpi::{LogicalSize, PhysicalSize, PhysicalPosition};
+use glutin::dpi::{PhysicalSize, PhysicalPosition};
 use glutin::{ContextError, PixelFormat, PossiblyCurrent, WindowedContext};
 use std::os::raw::c_void;
 use {glutin_convert_window_id, ContextApi};
@@ -113,7 +113,7 @@ pub fn glutin_windowed_context_get_pixel_format(
 }
 
 #[no_mangle]
-pub fn glutin_windowed_context_get_framebuffer_size(
+pub fn glutin_windowed_context_get_inner_size(
     _ptr_window: *mut ValueBox<WindowedContext<PossiblyCurrent>>,
     _ptr_size: *mut ValueBox<BoxerSizeU32>,
 ) {
@@ -127,31 +127,13 @@ pub fn glutin_windowed_context_get_framebuffer_size(
 }
 
 #[no_mangle]
-pub fn glutin_windowed_context_get_inner_size(
-    _ptr_window: *mut ValueBox<WindowedContext<PossiblyCurrent>>,
-    _ptr_size: *mut ValueBox<BoxerSizeF64>,
-) {
-    _ptr_window.with_not_null(|window| {
-        _ptr_size.with_not_null(|size| {
-            let window_size: PhysicalSize<u32> = window.window().inner_size();
-            let inner_size: LogicalSize<f64> =
-                window_size.to_logical(window.window().scale_factor());
-            size.width = inner_size.width;
-            size.height = inner_size.height;
-        });
-    });
-}
-
-#[no_mangle]
 pub fn glutin_windowed_context_set_inner_size(
     _ptr_window: *mut ValueBox<WindowedContext<PossiblyCurrent>>,
-    _width: f64,
-    _height: f64,
+    _width: u32,
+    _height: u32,
 ) {
     _ptr_window.with_not_null(|window| {
-        window.window().set_inner_size(
-            LogicalSize::new(_width, _height).to_physical::<u32>(window.window().scale_factor()),
-        )
+        window.window().set_inner_size(PhysicalSize::new(_width, _height))
     });
 }
 
@@ -217,18 +199,7 @@ pub fn glutin_windowed_context_set_title(
 }
 
 #[no_mangle]
-pub fn glutin_windowed_context_resize_logical(
-    _ptr_window: *mut ValueBox<WindowedContext<PossiblyCurrent>>,
-    _width: f64,
-    _height: f64,
-) {
-    _ptr_window.with_not_null(|window| {
-        window.resize(LogicalSize::new(_width, _height).to_physical(window.window().scale_factor()))
-    });
-}
-
-#[no_mangle]
-pub fn glutin_windowed_context_resize_physical(
+pub fn glutin_windowed_context_resize(
     _ptr_window: *mut ValueBox<WindowedContext<PossiblyCurrent>>,
     _width: u32,
     _height: u32,
