@@ -200,6 +200,7 @@ pub enum GlutinEventType {
     Suspended,
     Resumed,
     RedrawRequested,
+    RedrawEventsCleared,
     ModifiersChanged,
 }
 
@@ -371,6 +372,9 @@ pub(crate) fn glutin_events_loop_process_event(
         }
         glutin::event::Event::MainEventsCleared => {
             c_event.event_type = GlutinEventType::MainEventsCleared;
+        }
+        glutin::event::Event::RedrawEventsCleared => {
+            c_event.event_type = GlutinEventType::RedrawEventsCleared;
         }
         glutin::event::Event::LoopDestroyed => {
             c_event.event_type = GlutinEventType::LoopDestroyed;
