@@ -8,6 +8,9 @@ glutin = { git = "https://github.com/syrel/glutin" }
 libc = "0.2.65"
 boxer = { git = "https://github.com/feenkcom/gtoolkit-boxer" }
 
+[patch.crates-io]
+winit = { git = "https://github.com/rust-windowing/winit", rev = "9daa0738a9aeb60768d9b7d19f4e3deddd55958b" }
+
 [lib]
 name = "Glutin"
 crate-type = ["cdylib"]

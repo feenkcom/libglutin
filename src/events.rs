@@ -55,8 +55,8 @@ pub struct GlutinMouseInputEvent {
 #[repr(C)]
 pub struct GlutinCursorMovedEvent {
     device_id: i64,
-    x: i32,
-    y: i32,
+    x: f64,
+    y: f64,
 }
 
 #[derive(Debug, Copy, Clone, Default)]
@@ -503,7 +503,7 @@ fn glutin_event_loop_process_mouse_input(
 fn glutin_event_loop_process_cursor_moved(
     c_event: &mut GlutinEvent,
     device_id: DeviceId,
-    position: PhysicalPosition<i32>,
+    position: PhysicalPosition<f64>,
 ) {
     c_event.event_type = GlutinEventType::WindowEventCursorMoved;
     c_event.cursor_moved.device_id = unsafe { transmute(&device_id) };
