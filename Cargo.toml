@@ -9,10 +9,7 @@ libc = "0.2.65"
 boxer = { git = "https://github.com/feenkcom/gtoolkit-boxer" }
 
 [patch.crates-io]
-winit = { git = "https://github.com/rust-windowing/winit", rev = "9daa0738a9aeb60768d9b7d19f4e3deddd55958b" }
-
-[target.'cfg(windows)'.patch.crates-io]
-winit = { git = "https://github.com/rust-windowing/winit", rev = "627a127f1b96608649eee5ac474bf762daffbc3a" }
+winit = { git = "https://github.com/syrel/winit" }
 
 [lib]
 name = "Glutin"
