@@ -500,16 +500,16 @@ fn glutin_event_loop_process_mouse_input(
     }
 }
 
-fn glutin_event_loop_process_cursor_moved(
+fn glutin_event_loop_process_cursor_moved<T: Into<f64>>(
     c_event: &mut GlutinEvent,
     device_id: DeviceId,
-    position: PhysicalPosition<f64>,
+    position: PhysicalPosition<T>,
 ) {
     c_event.event_type = GlutinEventType::WindowEventCursorMoved;
     c_event.cursor_moved.device_id = unsafe { transmute(&device_id) };
 
-    c_event.cursor_moved.x = position.x;
-    c_event.cursor_moved.y = position.y;
+    c_event.cursor_moved.x = position.x.into();
+    c_event.cursor_moved.y = position.y.into();
 }
 
 fn glutin_event_loop_process_keyboard_input(
