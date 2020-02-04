@@ -1,11 +1,11 @@
 use boxer::boxes::{ValueBox, ValueBoxPointer};
 use boxer::number::BoxerUint128;
 use boxer::point::BoxerPointI32;
-use boxer::size::{BoxerSizeU32};
+use boxer::size::BoxerSizeU32;
 use boxer::string::{BoxerString, BoxerStringPointer};
 use boxer::CBox;
 use enums::GlutinCursorIcon;
-use glutin::dpi::{PhysicalSize, PhysicalPosition};
+use glutin::dpi::{PhysicalPosition, PhysicalSize};
 use glutin::{ContextError, PixelFormat, PossiblyCurrent, WindowedContext};
 use std::os::raw::c_void;
 use {glutin_convert_window_id, ContextApi};
@@ -133,7 +133,9 @@ pub fn glutin_windowed_context_set_inner_size(
     _height: u32,
 ) {
     _ptr_window.with_not_null(|window| {
-        window.window().set_inner_size(PhysicalSize::new(_width, _height))
+        window
+            .window()
+            .set_inner_size(PhysicalSize::new(_width, _height))
     });
 }
 

@@ -28,8 +28,8 @@ use boxer::CBox;
 
 use glutin::window::WindowId;
 
-use std::mem::transmute_copy;
 use glutin::Api;
+use std::mem::transmute_copy;
 
 ///////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////// L I B R A R Y /////////////////////////////////////
@@ -52,9 +52,9 @@ pub enum ContextApi {
 impl From<Api> for ContextApi {
     fn from(api: Api) -> Self {
         match api {
-            Api::OpenGl => { ContextApi::OpenGl },
-            Api::OpenGlEs => { ContextApi::OpenGlEs },
-            Api::WebGl => { ContextApi::WebGl },
+            Api::OpenGl => ContextApi::OpenGl,
+            Api::OpenGlEs => ContextApi::OpenGlEs,
+            Api::WebGl => ContextApi::WebGl,
         }
     }
 }

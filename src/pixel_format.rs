@@ -12,8 +12,9 @@ pub fn glutin_pixel_format_default() -> *mut ValueBox<PixelFormat> {
         stereoscopy: false,
         double_buffer: false,
         multisampling: None,
-        srgb: false
-    }).into_raw()
+        srgb: false,
+    })
+    .into_raw()
 }
 
 #[no_mangle]

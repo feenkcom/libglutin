@@ -95,7 +95,7 @@ pub struct GlutinEventKeyboardInput {
     state: GlutinEventInputElementState,
     has_virtual_keycode: bool,
     virtual_keycode: VirtualKeyCode,
-    is_synthetic: bool
+    is_synthetic: bool,
 }
 
 impl Default for GlutinEventKeyboardInput {
@@ -106,7 +106,7 @@ impl Default for GlutinEventKeyboardInput {
             state: Default::default(),
             has_virtual_keycode: Default::default(),
             virtual_keycode: VirtualKeyCode::Unlabeled,
-            is_synthetic: false
+            is_synthetic: false,
         }
     }
 }
@@ -202,6 +202,7 @@ pub enum GlutinEventType {
     RedrawRequested,
     RedrawEventsCleared,
     ModifiersChanged,
+    UserEvent,
 }
 
 impl Default for GlutinEventType {
@@ -289,7 +290,10 @@ pub(crate) fn glutin_events_loop_process_event(
                     c_event.window_resized.width = width;
                     c_event.window_resized.height = height;
                 }
-                WindowEvent::ScaleFactorChanged{scale_factor, new_inner_size} => {
+                WindowEvent::ScaleFactorChanged {
+                    scale_factor,
+                    new_inner_size,
+                } => {
                     c_event.event_type = GlutinEventType::WindowEventScaleFactorChanged;
                     c_event.scale_factor.scale_factor = scale_factor;
                     c_event.scale_factor.width = new_inner_size.width;
@@ -325,9 +329,7 @@ pub(crate) fn glutin_events_loop_process_event(
                     button,
                     ..
                 } => {
-                    glutin_event_loop_process_mouse_input(
-                        c_event, device_id, state, button
-                    );
+                    glutin_event_loop_process_mouse_input(c_event, device_id, state, button);
                 }
                 WindowEvent::CursorMoved {
                     device_id,
@@ -342,12 +344,19 @@ pub(crate) fn glutin_events_loop_process_event(
                     phase,
                     ..
                 } => {
-                    glutin_event_loop_process_mouse_wheel(
-                        c_event, device_id, delta, phase
-                    );
+                    glutin_event_loop_process_mouse_wheel(c_event, device_id, delta, phase);
                 }
-                WindowEvent::KeyboardInput { device_id, input, is_synthetic } => {
-                    glutin_event_loop_process_keyboard_input(c_event, device_id, input, is_synthetic);
+                WindowEvent::KeyboardInput {
+                    device_id,
+                    input,
+                    is_synthetic,
+                } => {
+                    glutin_event_loop_process_keyboard_input(
+                        c_event,
+                        device_id,
+                        input,
+                        is_synthetic,
+                    );
                 }
                 WindowEvent::ReceivedCharacter(character) => {
                     glutin_event_loop_process_received_character(c_event, character);
@@ -356,7 +365,10 @@ pub(crate) fn glutin_events_loop_process_event(
             }
         }
 
-        glutin::event::Event::DeviceEvent { device_id: _, event } => match event {
+        glutin::event::Event::DeviceEvent {
+            device_id: _,
+            event,
+        } => match event {
             DeviceEvent::ModifiersChanged(modifiers) => {
                 c_event.event_type = GlutinEventType::ModifiersChanged;
                 c_event.modifiers.alt = modifiers.alt();
@@ -390,7 +402,9 @@ pub(crate) fn glutin_events_loop_process_event(
         glutin::event::Event::Resumed => {
             c_event.event_type = GlutinEventType::Resumed;
         }
-        _ => ({ result = false }),
+        glutin::event::Event::UserEvent(()) => {
+            c_event.event_type = GlutinEventType::UserEvent;
+        }
     }
     result
 }
@@ -516,7 +530,7 @@ fn glutin_event_loop_process_keyboard_input(
     c_event: &mut GlutinEvent,
     device_id: DeviceId,
     input: KeyboardInput,
-    is_synthetic: bool
+    is_synthetic: bool,
 ) {
     c_event.event_type = GlutinEventType::WindowEventKeyboardInput;
     c_event.keyboard_input.device_id = unsafe { transmute(&device_id) };

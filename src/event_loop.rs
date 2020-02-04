@@ -1,7 +1,7 @@
 use boxer::boxes::{ValueBox, ValueBoxPointer};
 use boxer::CBox;
 use events::{glutin_events_loop_process_event, GlutinControlFlow, GlutinEvent};
-use glutin::event_loop::{ControlFlow, EventLoop, EventLoopWindowTarget};
+use glutin::event_loop::{ControlFlow, EventLoop, EventLoopProxy, EventLoopWindowTarget};
 use glutin::monitor::MonitorHandle;
 use glutin::platform::desktop::EventLoopExtDesktop;
 use std::time;
@@ -49,6 +49,18 @@ pub fn glutin_events_loop_run_return(
             },
         );
     });
+}
+
+#[no_mangle]
+fn glutin_events_loop_create_proxy(
+    _ptr_event_loop: *mut ValueBox<EventLoop<()>>,
+) -> *mut ValueBox<EventLoopProxy<()>> {
+    _ptr_event_loop.with(|event_loop| ValueBox::new(event_loop.create_proxy()).into_raw())
+}
+
+#[no_mangle]
+fn glutin_events_loop_drop_proxy(_ptr: *mut ValueBox<EventLoopProxy<()>>) {
+    _ptr.drop();
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////

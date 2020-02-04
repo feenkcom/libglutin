@@ -1,9 +1,9 @@
 use boxer::boxes::{ValueBox, ValueBoxPointer};
+use boxer::string::{BoxerString, BoxerStringPointer};
 use glutin::dpi::PhysicalSize;
 use glutin::event_loop::EventLoop;
 use glutin::window::WindowBuilder;
-use glutin::{Context, ContextBuilder, NotCurrent, PossiblyCurrent, WindowedContext, ContextError};
-use boxer::string::{BoxerString, BoxerStringPointer};
+use glutin::{Context, ContextBuilder, ContextError, NotCurrent, PossiblyCurrent, WindowedContext};
 use std::os::raw::c_void;
 use ContextApi;
 
@@ -102,7 +102,8 @@ pub fn glutin_try_headless_context(
     _ptr_events_loop: *mut ValueBox<EventLoop<()>>,
     _ptr_context_builder: *mut ValueBox<ContextBuilder<NotCurrent>>,
 ) -> bool {
-    let builder_copy = _ptr_context_builder.with_value(|context_builder| ValueBox::new(context_builder).into_raw());
+    let builder_copy = _ptr_context_builder
+        .with_value(|context_builder| ValueBox::new(context_builder).into_raw());
     let context = glutin_create_headless_context(_ptr_events_loop, builder_copy);
     let is_valid = context.is_valid();
     context.drop();
@@ -115,37 +116,46 @@ pub fn glutin_context_make_current(mut _ptr: *mut ValueBox<Context<PossiblyCurre
         let context: Context<PossiblyCurrent>;
 
         match unsafe { window.make_current() } {
-            Ok(new_context) => { context = new_context },
+            Ok(new_context) => context = new_context,
             Err((old_context, err)) => {
                 context = old_context;
                 match err {
-                    ContextError::OsError(string) => { eprintln!("OS Error in make_current: {}", string) },
-                    ContextError::IoError(error)=> { eprintln!("IO Error in make_current: {:?}", error) },
-                    ContextError::ContextLost => { eprintln!("ContextLost Error in make_current") }
-                    ContextError::FunctionUnavailable => { eprintln!("FunctionUnavailable Error in make_current") }
+                    ContextError::OsError(string) => {
+                        eprintln!("OS Error in make_current: {}", string)
+                    }
+                    ContextError::IoError(error) => {
+                        eprintln!("IO Error in make_current: {:?}", error)
+                    }
+                    ContextError::ContextLost => eprintln!("ContextLost Error in make_current"),
+                    ContextError::FunctionUnavailable => {
+                        eprintln!("FunctionUnavailable Error in make_current")
+                    }
                 }
             }
         }
-        unsafe { value_box.mutate(context); };
+        unsafe {
+            value_box.mutate(context);
+        };
     });
 }
 
 #[no_mangle]
 pub fn glutin_context_is_current(_ptr_context: *mut ValueBox<Context<PossiblyCurrent>>) -> bool {
-    _ptr_context.with_not_null_return(false, |context | context.is_current())
+    _ptr_context.with_not_null_return(false, |context| context.is_current())
 }
 
 #[no_mangle]
 pub fn glutin_context_get_api(_ptr_context: *mut ValueBox<Context<PossiblyCurrent>>) -> ContextApi {
-    _ptr_context.with_not_null_return(ContextApi::Unknown, |context | context.get_api().into())
+    _ptr_context.with_not_null_return(ContextApi::Unknown, |context| context.get_api().into())
 }
 
 #[no_mangle]
-pub fn glutin_context_get_proc_address(_ptr_context: *mut ValueBox<Context<PossiblyCurrent>>, _ptr_symbol: *mut BoxerString) -> *const c_void {
+pub fn glutin_context_get_proc_address(
+    _ptr_context: *mut ValueBox<Context<PossiblyCurrent>>,
+    _ptr_symbol: *mut BoxerString,
+) -> *const c_void {
     _ptr_context.with_not_null_return(std::ptr::null(), |context| {
-        _ptr_symbol.with(|symbol| {
-            context.get_proc_address(symbol.to_string().as_str())
-        })
+        _ptr_symbol.with(|symbol| context.get_proc_address(symbol.to_string().as_str()))
     })
 }
 
