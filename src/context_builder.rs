@@ -112,6 +112,16 @@ pub fn glutin_context_builder_with_double_buffer(
 }
 
 #[no_mangle]
+pub fn glutin_context_builder_with_hardware_acceleration(
+    mut _ptr_context_builder: *mut ValueBox<ContextBuilder<NotCurrent>>,
+    hardware_acceleration_enabled: bool,
+) {
+    _ptr_context_builder.with_not_null_value_mutate_consumed(|builder| {
+        builder.with_hardware_acceleration(Some(hardware_acceleration_enabled))
+    })
+}
+
+#[no_mangle]
 pub fn glutin_context_builder_get_pixel_format_requirements(
     _ptr_context_builder: *mut ValueBox<ContextBuilder<NotCurrent>>,
 ) -> *mut ValueBox<PixelFormatRequirements> {
@@ -119,6 +129,7 @@ pub fn glutin_context_builder_get_pixel_format_requirements(
         ValueBox::new(builder.pf_reqs.clone()).into_raw()
     })
 }
+
 
 #[no_mangle]
 pub fn glutin_destroy_context_builder(_ptr: *mut ValueBox<ContextBuilder<PossiblyCurrent>>) {
