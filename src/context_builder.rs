@@ -132,7 +132,6 @@ pub fn glutin_context_builder_with_hardware_acceleration(
 #[no_mangle]
 pub fn glutin_context_builder_with_any_hardware_acceleration(
     mut _ptr_context_builder: *mut ValueBox<ContextBuilder<NotCurrent>>,
-    hardware_acceleration_enabled: bool,
 ) {
     _ptr_context_builder.with_not_null_value_mutate_consumed(|builder| {
         builder.with_hardware_acceleration(None)
