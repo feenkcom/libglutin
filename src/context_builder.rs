@@ -47,6 +47,14 @@ pub fn glutin_context_builder_with_gl_profile_core(
 }
 
 #[no_mangle]
+pub fn glutin_context_builder_with_gl_profile_compatibility(
+    mut _ptr_context_builder: *mut ValueBox<ContextBuilder<NotCurrent>>,
+) {
+    _ptr_context_builder
+        .with_not_null_value_mutate_consumed(|builder| builder.with_gl_profile(GlProfile::Compatibility))
+}
+
+#[no_mangle]
 pub fn glutin_context_builder_with_multisampling(
     mut _ptr_context_builder: *mut ValueBox<ContextBuilder<NotCurrent>>,
     samples: u16,
