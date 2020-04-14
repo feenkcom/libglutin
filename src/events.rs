@@ -77,8 +77,8 @@ pub struct GlutinWindowScaleFactorChangedEvent {
 #[derive(Debug, Copy, Clone, Default)]
 #[repr(C)]
 pub struct GlutinWindowMovedEvent {
-    x: u32,
-    y: u32,
+    x: i32,
+    y: i32,
 }
 
 #[derive(Debug, Copy, Clone, Default)]
@@ -305,8 +305,8 @@ pub(crate) fn glutin_events_loop_process_event(
                 }
                 WindowEvent::Moved(PhysicalPosition { x, y }) => {
                     c_event.event_type = GlutinEventType::WindowEventMoved;
-                    c_event.window_moved.x = x;
-                    c_event.window_moved.y = y;
+                    c_event.window_moved.x = x as i32;
+                    c_event.window_moved.y = y as i32;
                 }
                 WindowEvent::CloseRequested => {
                     c_event.event_type = GlutinEventType::WindowEventCloseRequested;
