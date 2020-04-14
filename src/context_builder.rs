@@ -50,8 +50,9 @@ pub fn glutin_context_builder_with_gl_profile_core(
 pub fn glutin_context_builder_with_gl_profile_compatibility(
     mut _ptr_context_builder: *mut ValueBox<ContextBuilder<NotCurrent>>,
 ) {
-    _ptr_context_builder
-        .with_not_null_value_mutate_consumed(|builder| builder.with_gl_profile(GlProfile::Compatibility))
+    _ptr_context_builder.with_not_null_value_mutate_consumed(|builder| {
+        builder.with_gl_profile(GlProfile::Compatibility)
+    })
 }
 
 #[no_mangle]
@@ -133,9 +134,8 @@ pub fn glutin_context_builder_with_hardware_acceleration(
 pub fn glutin_context_builder_with_any_hardware_acceleration(
     mut _ptr_context_builder: *mut ValueBox<ContextBuilder<NotCurrent>>,
 ) {
-    _ptr_context_builder.with_not_null_value_mutate_consumed(|builder| {
-        builder.with_hardware_acceleration(None)
-    })
+    _ptr_context_builder
+        .with_not_null_value_mutate_consumed(|builder| builder.with_hardware_acceleration(None))
 }
 
 #[no_mangle]
@@ -146,7 +146,6 @@ pub fn glutin_context_builder_get_pixel_format_requirements(
         ValueBox::new(builder.pf_reqs.clone()).into_raw()
     })
 }
-
 
 #[no_mangle]
 pub fn glutin_destroy_context_builder(_ptr: *mut ValueBox<ContextBuilder<PossiblyCurrent>>) {

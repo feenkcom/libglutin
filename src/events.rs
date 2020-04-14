@@ -361,23 +361,16 @@ pub(crate) fn glutin_events_loop_process_event(
                 WindowEvent::ReceivedCharacter(character) => {
                     glutin_event_loop_process_received_character(c_event, character);
                 }
+                WindowEvent::ModifiersChanged(modifiers) => {
+                    c_event.event_type = GlutinEventType::ModifiersChanged;
+                    c_event.modifiers.alt = modifiers.alt();
+                    c_event.modifiers.ctrl = modifiers.ctrl();
+                    c_event.modifiers.logo = modifiers.logo();
+                    c_event.modifiers.shift = modifiers.shift();
+                }
                 _ => ({ result = false }),
             }
         }
-
-        glutin::event::Event::DeviceEvent {
-            device_id: _,
-            event,
-        } => match event {
-            DeviceEvent::ModifiersChanged(modifiers) => {
-                c_event.event_type = GlutinEventType::ModifiersChanged;
-                c_event.modifiers.alt = modifiers.alt();
-                c_event.modifiers.ctrl = modifiers.ctrl();
-                c_event.modifiers.logo = modifiers.logo();
-                c_event.modifiers.shift = modifiers.shift();
-            }
-            _ => ({ result = false }),
-        },
 
         glutin::event::Event::NewEvents(_start_cause) => {
             c_event.event_type = GlutinEventType::NewEvents;
@@ -405,6 +398,10 @@ pub(crate) fn glutin_events_loop_process_event(
         glutin::event::Event::UserEvent(()) => {
             c_event.event_type = GlutinEventType::UserEvent;
         }
+        Event::DeviceEvent {
+            device_id: _,
+            event: _,
+        } => result = false,
     }
     result
 }
