@@ -221,7 +221,7 @@ dependencies = [
 [[package]]
 name = "glutin"
 version = "0.24.0"
-source = "git+https://github.com/rust-windowing/glutin?rev=33aec609b6da89afc3c59b8b6e294b00c52fc12b#33aec609b6da89afc3c59b8b6e294b00c52fc12b"
+source = "git+https://github.com/syrel/glutin?rev=d603e880cca0ad0301f7792409c65f6c5c5b04a7#d603e880cca0ad0301f7792409c65f6c5c5b04a7"
 dependencies = [
  "android_glue",
  "cgl",
@@ -247,7 +247,7 @@ dependencies = [
 [[package]]
 name = "glutin_egl_sys"
 version = "0.1.4"
-source = "git+https://github.com/rust-windowing/glutin?rev=33aec609b6da89afc3c59b8b6e294b00c52fc12b#33aec609b6da89afc3c59b8b6e294b00c52fc12b"
+source = "git+https://github.com/syrel/glutin?rev=d603e880cca0ad0301f7792409c65f6c5c5b04a7#d603e880cca0ad0301f7792409c65f6c5c5b04a7"
 dependencies = [
  "gl_generator",
  "winapi 0.3.8",
@@ -256,12 +256,12 @@ dependencies = [
 [[package]]
 name = "glutin_emscripten_sys"
 version = "0.1.1"
-source = "git+https://github.com/rust-windowing/glutin?rev=33aec609b6da89afc3c59b8b6e294b00c52fc12b#33aec609b6da89afc3c59b8b6e294b00c52fc12b"
+source = "git+https://github.com/syrel/glutin?rev=d603e880cca0ad0301f7792409c65f6c5c5b04a7#d603e880cca0ad0301f7792409c65f6c5c5b04a7"
 
 [[package]]
 name = "glutin_gles2_sys"
 version = "0.1.4"
-source = "git+https://github.com/rust-windowing/glutin?rev=33aec609b6da89afc3c59b8b6e294b00c52fc12b#33aec609b6da89afc3c59b8b6e294b00c52fc12b"
+source = "git+https://github.com/syrel/glutin?rev=d603e880cca0ad0301f7792409c65f6c5c5b04a7#d603e880cca0ad0301f7792409c65f6c5c5b04a7"
 dependencies = [
  "gl_generator",
  "objc",
@@ -270,7 +270,7 @@ dependencies = [
 [[package]]
 name = "glutin_glx_sys"
 version = "0.1.6"
-source = "git+https://github.com/rust-windowing/glutin?rev=33aec609b6da89afc3c59b8b6e294b00c52fc12b#33aec609b6da89afc3c59b8b6e294b00c52fc12b"
+source = "git+https://github.com/syrel/glutin?rev=d603e880cca0ad0301f7792409c65f6c5c5b04a7#d603e880cca0ad0301f7792409c65f6c5c5b04a7"
 dependencies = [
  "gl_generator",
  "x11-dl",
@@ -279,7 +279,7 @@ dependencies = [
 [[package]]
 name = "glutin_wgl_sys"
 version = "0.1.4"
-source = "git+https://github.com/rust-windowing/glutin?rev=33aec609b6da89afc3c59b8b6e294b00c52fc12b#33aec609b6da89afc3c59b8b6e294b00c52fc12b"
+source = "git+https://github.com/syrel/glutin?rev=d603e880cca0ad0301f7792409c65f6c5c5b04a7#d603e880cca0ad0301f7792409c65f6c5c5b04a7"
 dependencies = [
  "gl_generator",
 ]

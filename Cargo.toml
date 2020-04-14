@@ -4,7 +4,7 @@ version = "0.2.0"
 authors = ["Aliaksei Syrel <alex.syrel@gmail.com>"]
 
 [dependencies]
-glutin = { git = "https://github.com/rust-windowing/glutin", rev ="33aec609b6da89afc3c59b8b6e294b00c52fc12b" }
+glutin = { git = "https://github.com/syrel/glutin", rev ="d603e880cca0ad0301f7792409c65f6c5c5b04a7" }
 libc = "0.2.65"
 boxer = { git = "https://github.com/feenkcom/gtoolkit-boxer" }
 
