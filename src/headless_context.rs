@@ -2,60 +2,87 @@ use boxer::boxes::{ValueBox, ValueBoxPointer};
 use boxer::string::{BoxerString, BoxerStringPointer};
 use glutin::dpi::PhysicalSize;
 use glutin::event_loop::EventLoop;
-use glutin::window::WindowBuilder;
-use glutin::{Context, ContextBuilder, ContextError, NotCurrent, PossiblyCurrent, WindowedContext};
+use glutin::{
+    Context, ContextBuilder, ContextCurrentState, ContextError, CreationError, NotCurrent,
+    PossiblyCurrent,
+};
 use std::os::raw::c_void;
 use ContextApi;
 
-#[no_mangle]
-pub fn glutin_create_windowed_context(
-    _ptr_events_loop: *mut ValueBox<EventLoop<()>>,
-    mut _ptr_window_builder: *mut ValueBox<WindowBuilder>,
-    mut _ptr_context_builder: *mut ValueBox<ContextBuilder<NotCurrent>>,
-) -> *mut ValueBox<WindowedContext<PossiblyCurrent>> {
-    if _ptr_events_loop.is_null() {
-        eprintln!("[glutin_create_windowed_context] Event loop is null");
-        return std::ptr::null_mut();
+#[cfg(target_os = "linux")]
+fn build_context_surfaceless<T1: ContextCurrentState>(
+    cb: ContextBuilder<T1>,
+    el: &EventLoop<()>,
+) -> Result<Context<NotCurrent>, CreationError> {
+    use glutin::platform::unix::HeadlessContextExt;
+    cb.build_surfaceless(&el)
+}
+
+fn build_context_headless<T1: ContextCurrentState>(
+    cb: ContextBuilder<T1>,
+    el: &EventLoop<()>,
+) -> Result<Context<NotCurrent>, CreationError> {
+    let size_one = PhysicalSize::new(1, 1);
+    cb.build_headless(&el, size_one)
+}
+
+#[cfg(target_os = "linux")]
+fn build_context_osmesa<T1: ContextCurrentState>(
+    cb: ContextBuilder<T1>,
+) -> Result<Context<NotCurrent>, CreationError> {
+    use glutin::platform::unix::HeadlessContextExt;
+    let size_one = PhysicalSize::new(1, 1);
+    cb.build_osmesa(size_one)
+}
+
+#[cfg(target_os = "linux")]
+fn build_context<T1: ContextCurrentState>(
+    el: &EventLoop<()>,
+    cb: ContextBuilder<T1>,
+) -> Result<Context<NotCurrent>, [CreationError; 3]> {
+    // On unix operating systems, you should always try for surfaceless first,
+    // and if that does not work, headless (pbuffers), and if that too fails,
+    // finally osmesa.
+    //
+    // If willing, you could attempt to use hidden windows instead of os mesa,
+    // but note that you must handle events for the window that come on the
+    // events loop.
+    if cfg!(debug_assertions) {
+        println!("[Glutin][build_context] Trying surfaceless");
     }
+    let err1 = match build_context_surfaceless(cb.clone(), el) {
+        Ok(ctx) => return Ok(ctx),
+        Err(err) => err,
+    };
 
-    if _ptr_window_builder.is_null() {
-        eprintln!("[glutin_create_windowed_context] Window builder is null");
-        return std::ptr::null_mut();
+    if cfg!(debug_assertions) {
+        println!("[Glutin][build_context] Trying headless");
     }
+    let err2 = match build_context_headless(cb.clone(), el) {
+        Ok(ctx) => return Ok(ctx),
+        Err(err) => err,
+    };
 
-    if _ptr_context_builder.is_null() {
-        eprintln!("[glutin_create_windowed_context] Context builder is null");
-        return std::ptr::null_mut();
+    if cfg!(debug_assertions) {
+        println!("[Glutin][build_context] Trying osmesa");
     }
+    let err3 = match build_context_osmesa(cb) {
+        Ok(ctx) => return Ok(ctx),
+        Err(err) => err,
+    };
 
-    _ptr_events_loop.with_not_null_return(std::ptr::null_mut(), |event_loop| {
-        _ptr_context_builder.with_value_consumed(|context_builder| {
-            _ptr_window_builder.with_value_consumed(|window_builder| {
-                if cfg!(debug_assertions) {
-                    println!("[Glutin] OpenGL Context: {:?}", context_builder);
-                    println!("[Glutin] Window attributes: {:?}", window_builder);
-                }
+    Err([err1, err2, err3])
+}
 
-                match context_builder.build_windowed(window_builder, event_loop) {
-                    Ok(windowed_context) => match unsafe { windowed_context.make_current() } {
-                        Ok(windowed_context) => ValueBox::new(windowed_context).into_raw(),
-                        Err(err) => {
-                            if cfg!(debug_assertions) {
-                                println!("[Glutin] Could not create context {:?}", err);
-                            }
-                            std::ptr::null_mut()
-                        }
-                    },
-                    Err(err) => {
-                        if cfg!(debug_assertions) {
-                            println!("[Glutin] Could not create context {:?}", err);
-                        }
-                        std::ptr::null_mut()
-                    }
-                }
-            })
-        })
-    })
+#[cfg(not(target_os = "linux"))]
+fn build_context<T1: ContextCurrentState>(
+    el: &EventLoop<()>,
+    cb: ContextBuilder<T1>,
+) -> Result<Context<NotCurrent>, CreationError> {
+    if cfg!(debug_assertions) {
+        println!("[Glutin][build_context] Trying headless");
+    }
+    build_context_headless(cb.clone(), el).map(|ctx| ctx)
 }
 
 #[no_mangle]
@@ -83,7 +110,7 @@ pub fn glutin_create_headless_context(
                 );
             }
 
-            match context_builder.build_headless(event_loop, PhysicalSize::new(1, 1)) {
+            match build_context(event_loop, context_builder) {
                 Ok(context) => ValueBox::new(context).into_raw(),
                 Err(err) => {
                     if cfg!(debug_assertions) {
@@ -161,10 +188,5 @@ pub fn glutin_context_get_proc_address(
 
 #[no_mangle]
 pub fn glutin_destroy_context(_ptr: *mut ValueBox<Context<PossiblyCurrent>>) {
-    _ptr.drop();
-}
-
-#[no_mangle]
-pub fn glutin_destroy_windowed_context(_ptr: *mut ValueBox<WindowedContext<PossiblyCurrent>>) {
     _ptr.drop();
 }

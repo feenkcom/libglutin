@@ -4,15 +4,15 @@ extern crate boxer;
 extern crate glutin;
 extern crate libc;
 
-pub mod context;
 pub mod context_builder;
 pub mod enums;
 pub mod event_loop;
 pub mod events;
+pub mod headless_context;
 pub mod pixel_format;
 pub mod pixel_format_requirements;
-pub mod window;
 pub mod window_builder;
+pub mod windowed_context;
 
 #[cfg(target_os = "macos")]
 #[path = "platform/macos.rs"]

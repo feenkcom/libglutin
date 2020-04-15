@@ -6,9 +6,64 @@ use boxer::string::{BoxerString, BoxerStringPointer};
 use boxer::CBox;
 use enums::GlutinCursorIcon;
 use glutin::dpi::{PhysicalPosition, PhysicalSize};
-use glutin::{ContextError, PixelFormat, PossiblyCurrent, WindowedContext};
+use glutin::event_loop::EventLoop;
+use glutin::window::WindowBuilder;
+use glutin::{
+    ContextBuilder, ContextError, NotCurrent, PixelFormat, PossiblyCurrent, WindowedContext,
+};
 use std::os::raw::c_void;
 use {glutin_convert_window_id, ContextApi};
+
+#[no_mangle]
+pub fn glutin_create_windowed_context(
+    _ptr_events_loop: *mut ValueBox<EventLoop<()>>,
+    mut _ptr_window_builder: *mut ValueBox<WindowBuilder>,
+    mut _ptr_context_builder: *mut ValueBox<ContextBuilder<NotCurrent>>,
+) -> *mut ValueBox<WindowedContext<PossiblyCurrent>> {
+    if _ptr_events_loop.is_null() {
+        eprintln!("[glutin_create_windowed_context] Event loop is null");
+        return std::ptr::null_mut();
+    }
+
+    if _ptr_window_builder.is_null() {
+        eprintln!("[glutin_create_windowed_context] Window builder is null");
+        return std::ptr::null_mut();
+    }
+
+    if _ptr_context_builder.is_null() {
+        eprintln!("[glutin_create_windowed_context] Context builder is null");
+        return std::ptr::null_mut();
+    }
+
+    _ptr_events_loop.with_not_null_return(std::ptr::null_mut(), |event_loop| {
+        _ptr_context_builder.with_value_consumed(|context_builder| {
+            _ptr_window_builder.with_value_consumed(|window_builder| {
+                if cfg!(debug_assertions) {
+                    println!("[Glutin] OpenGL Context: {:?}", context_builder);
+                    println!("[Glutin] Window attributes: {:?}", window_builder);
+                }
+
+                match context_builder.build_windowed(window_builder, event_loop) {
+                    Ok(windowed_context) => match unsafe { windowed_context.make_current() } {
+                        Ok(windowed_context) => ValueBox::new(windowed_context).into_raw(),
+                        Err(err) => {
+                            if cfg!(debug_assertions) {
+                                println!("[Glutin] Could not create context {:?}", err);
+                            }
+                            std::ptr::null_mut()
+                        }
+                    },
+                    Err(err) => {
+                        if cfg!(debug_assertions) {
+                            println!("[Glutin] Could not create context {:?}", err);
+                        }
+                        std::ptr::null_mut()
+                    }
+                }
+            })
+        })
+    })
+}
 
 ///////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////// W I N D O W   A C C E S S O R S /////////////////////////
@@ -215,4 +270,9 @@ pub fn glutin_windowed_context_set_cursor_icon(
     cursor_icon: GlutinCursorIcon,
 ) {
     _ptr_window.with_not_null(|window| window.window().set_cursor_icon(cursor_icon.into()));
+}
+
+#[no_mangle]
+pub fn glutin_destroy_windowed_context(_ptr: *mut ValueBox<WindowedContext<PossiblyCurrent>>) {
+    _ptr.drop();
 }
