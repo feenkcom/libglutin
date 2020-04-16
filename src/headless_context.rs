@@ -15,6 +15,9 @@ fn build_context_surfaceless<T1: ContextCurrentState>(
     el: &EventLoop<()>,
 ) -> Result<Context<NotCurrent>, CreationError> {
     use glutin::platform::unix::HeadlessContextExt;
+    if el.is_x11() {
+        return Err(CreationError::NotSupported("Surfaceless context is not supported with X11".into_string()))
+    }
     cb.build_surfaceless(el)
 }
 
