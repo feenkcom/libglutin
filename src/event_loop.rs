@@ -51,6 +51,50 @@ pub fn glutin_events_loop_run_return(
     });
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[repr(u8)]
+pub enum GlutinEventLoopType {
+    Windows,
+    MacOS,
+    X11,
+    Wayland,
+    Unknown,
+}
+
+#[cfg(target_os = "linux")]
+fn get_event_loop_type(_event_loop: &EventLoop<()>) -> GlutinEventLoopType {
+    use glutin::platform::unix::EventLoopWindowTargetExtUnix;
+    if _event_loop.is_wayland() {
+        return GlutinEventLoopType::Wayland;
+    }
+    if _event_loop.is_x11() {
+        return GlutinEventLoopType::X11;
+    }
+    return GlutinEventLoopType::Unknown;
+}
+
+#[cfg(target_os = "windows")]
+fn get_event_loop_type(_event_loop: &EventLoop<()>) -> GlutinEventLoopType {
+    GlutinEventLoopType::Windows
+}
+
+#[cfg(target_os = "macos")]
+fn get_event_loop_type(_event_loop: &EventLoop<()>) -> GlutinEventLoopType {
+    GlutinEventLoopType::MacOS
+}
+
+#[cfg(not(any(target_os = "windows", target_os = "macos", target_os = "linux")))]
+fn get_event_loop_type(_event_loop: &EventLoop<()>) -> GlutinEventLoopType {
+    GlutinEventLoopType::Unknown
+}
+
+#[no_mangle]
+fn glutin_events_loop_get_type(
+    _ptr_event_loop: *mut ValueBox<EventLoop<()>>,
+) -> GlutinEventLoopType {
+    _ptr_event_loop.with(|event_loop| get_event_loop_type(event_loop))
+}
+
 #[no_mangle]
 fn glutin_events_loop_create_proxy(
     _ptr_event_loop: *mut ValueBox<EventLoop<()>>,
