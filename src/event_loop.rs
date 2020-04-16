@@ -92,7 +92,9 @@ fn get_event_loop_type(_event_loop: &EventLoop<()>) -> GlutinEventLoopType {
 fn glutin_events_loop_get_type(
     _ptr_event_loop: *mut ValueBox<EventLoop<()>>,
 ) -> GlutinEventLoopType {
-    _ptr_event_loop.with(|event_loop| get_event_loop_type(event_loop))
+    _ptr_event_loop.with_not_null_return(GlutinEventLoopType::Unknown, |event_loop| {
+        get_event_loop_type(event_loop)
+    })
 }
 
 #[no_mangle]
