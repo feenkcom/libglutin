@@ -167,7 +167,7 @@ version = "0.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "77e51249a9d823a4cb79e3eca6dcd756153e8ed0157b6c04775d04bf1b13b76a"
 dependencies = [
- "libloading",
+ "libloading 0.5.2",
 ]
 
 [[package]]
@@ -221,7 +221,7 @@ dependencies = [
 [[package]]
 name = "glutin"
 version = "0.24.0"
-source = "git+https://github.com/syrel/glutin?rev=d603e880cca0ad0301f7792409c65f6c5c5b04a7#d603e880cca0ad0301f7792409c65f6c5c5b04a7"
+source = "git+https://github.com/syrel/glutin?rev=0b1971f880f68ee3c2dd83e777b6f20be980c3b4#0b1971f880f68ee3c2dd83e777b6f20be980c3b4"
 dependencies = [
  "android_glue",
  "cgl",
@@ -234,7 +234,7 @@ dependencies = [
  "glutin_glx_sys",
  "glutin_wgl_sys",
  "lazy_static",
- "libloading",
+ "libloading 0.6.1",
  "log",
  "objc",
  "osmesa-sys",
@@ -247,7 +247,7 @@ dependencies = [
 [[package]]
 name = "glutin_egl_sys"
 version = "0.1.4"
-source = "git+https://github.com/syrel/glutin?rev=d603e880cca0ad0301f7792409c65f6c5c5b04a7#d603e880cca0ad0301f7792409c65f6c5c5b04a7"
+source = "git+https://github.com/syrel/glutin?rev=0b1971f880f68ee3c2dd83e777b6f20be980c3b4#0b1971f880f68ee3c2dd83e777b6f20be980c3b4"
 dependencies = [
  "gl_generator",
  "winapi 0.3.8",
@@ -256,12 +256,12 @@ dependencies = [
 [[package]]
 name = "glutin_emscripten_sys"
 version = "0.1.1"
-source = "git+https://github.com/syrel/glutin?rev=d603e880cca0ad0301f7792409c65f6c5c5b04a7#d603e880cca0ad0301f7792409c65f6c5c5b04a7"
+source = "git+https://github.com/syrel/glutin?rev=0b1971f880f68ee3c2dd83e777b6f20be980c3b4#0b1971f880f68ee3c2dd83e777b6f20be980c3b4"
 
 [[package]]
 name = "glutin_gles2_sys"
 version = "0.1.4"
-source = "git+https://github.com/syrel/glutin?rev=d603e880cca0ad0301f7792409c65f6c5c5b04a7#d603e880cca0ad0301f7792409c65f6c5c5b04a7"
+source = "git+https://github.com/syrel/glutin?rev=0b1971f880f68ee3c2dd83e777b6f20be980c3b4#0b1971f880f68ee3c2dd83e777b6f20be980c3b4"
 dependencies = [
  "gl_generator",
  "objc",
@@ -270,7 +270,7 @@ dependencies = [
 [[package]]
 name = "glutin_glx_sys"
 version = "0.1.6"
-source = "git+https://github.com/syrel/glutin?rev=d603e880cca0ad0301f7792409c65f6c5c5b04a7#d603e880cca0ad0301f7792409c65f6c5c5b04a7"
+source = "git+https://github.com/syrel/glutin?rev=0b1971f880f68ee3c2dd83e777b6f20be980c3b4#0b1971f880f68ee3c2dd83e777b6f20be980c3b4"
 dependencies = [
  "gl_generator",
  "x11-dl",
@@ -279,7 +279,7 @@ dependencies = [
 [[package]]
 name = "glutin_wgl_sys"
 version = "0.1.4"
-source = "git+https://github.com/syrel/glutin?rev=d603e880cca0ad0301f7792409c65f6c5c5b04a7#d603e880cca0ad0301f7792409c65f6c5c5b04a7"
+source = "git+https://github.com/syrel/glutin?rev=0b1971f880f68ee3c2dd83e777b6f20be980c3b4#0b1971f880f68ee3c2dd83e777b6f20be980c3b4"
 dependencies = [
  "gl_generator",
 ]
@@ -349,6 +349,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f2b111a074963af1d37a139918ac6d49ad1d0d5e47f72fd55388619691a7d753"
 dependencies = [
  "cc",
+ "winapi 0.3.8",
+]
+
+[[package]]
+name = "libloading"
+version = "0.6.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3c4f51b790f5bdb65acb4cc94bb81d7b2ee60348a5431ac1467d390b017600b0"
+dependencies = [
  "winapi 0.3.8",
 ]
 
