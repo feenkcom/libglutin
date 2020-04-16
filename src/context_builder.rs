@@ -1,7 +1,6 @@
 use boxer::boxes::{ValueBox, ValueBoxPointer};
 use glutin::{
-    ContextBuilder, GlProfile, GlRequest, NotCurrent, PixelFormatRequirements, PossiblyCurrent,
-    Robustness,
+    ContextBuilder, GlProfile, GlRequest, NotCurrent, PixelFormatRequirements, PossiblyCurrent
 };
 
 #[no_mangle]
