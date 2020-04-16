@@ -206,10 +206,12 @@ pub fn glutin_windowed_context_get_position(
                 position.y = physical_position.y;
             }
             Err(err) => {
-                eprintln!(
-                    "[glutin_windowed_context_get_position] Error getting position: {:?}",
-                    err
-                );
+                if cfg!(debug_assertions) {
+                    eprintln!(
+                        "[glutin_windowed_context_get_position] Error getting position: {:?}",
+                        err
+                    );
+                }
                 position.be_zero()
             }
         })
