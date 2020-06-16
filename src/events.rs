@@ -539,7 +539,6 @@ fn glutin_event_loop_process_cursor_entered(
     device_id: DeviceId,
 ) {
     c_event.event_type = GlutinEventType::WindowEventCursorEntered;
-    c_event.cursor_moved.device_id = unsafe { transmute(&device_id) };
 }
 
 fn glutin_event_loop_process_cursor_left(
@@ -547,7 +546,6 @@ fn glutin_event_loop_process_cursor_left(
     device_id: DeviceId,
 ) {
     c_event.event_type = GlutinEventType::WindowEventCursorLeft;
-    c_event.cursor_moved.device_id = unsafe { transmute(&device_id) };
 }
 
 fn glutin_event_loop_process_keyboard_input(
