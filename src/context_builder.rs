@@ -1,7 +1,5 @@
-use boxer::boxes::{ValueBox, ValueBoxPointer};
-use glutin::{
-    ContextBuilder, GlProfile, GlRequest, NotCurrent, PixelFormatRequirements, PossiblyCurrent,
-};
+use boxer::boxes::{ValueBox, ValueBoxPointer, from_raw};
+use glutin::{Context, ContextBuilder, GlProfile, GlRequest, NotCurrent, PixelFormatRequirements, PossiblyCurrent, WindowedContext};
 
 #[no_mangle]
 pub fn glutin_context_builder_default<'a>() -> *mut ValueBox<ContextBuilder<'a, NotCurrent>> {
@@ -24,6 +22,30 @@ pub fn glutin_context_builder_with_gl_then_gles(
             opengles_version: (gles_major, gles_minor),
         })
     });
+}
+
+#[no_mangle]
+pub fn glutin_context_builder_with_shared_windowed_context(
+    mut _ptr_context_builder: *mut ValueBox<ContextBuilder<NotCurrent>>,
+    mut _ptr_another_context: *mut ValueBox<WindowedContext<NotCurrent>>,
+) {
+    let mut c_value_box = unsafe { from_raw(_ptr_another_context) };
+    let c_boxed_object = unsafe { from_raw(c_value_box.boxed()) };
+    let c_object = *c_boxed_object;
+
+    let mut value_box = unsafe { from_raw(_ptr_context_builder) };
+    let boxed_object = unsafe { from_raw(value_box.boxed()) };
+    let object = *boxed_object;
+
+    let new_builder = object.with_shared_lists(&c_object);
+
+    let new_builder_box = Box::new(new_builder);
+    let new_builder_ptr = Box::into_raw(new_builder_box);
+
+    let x: *mut ContextBuilder<NotCurrent> = unsafe { std::mem::transmute(new_builder_ptr) };
+
+    _ptr_context_builder.mutate_ptr(x);
+    std::mem::forget(c_object);
 }
 
 #[no_mangle]

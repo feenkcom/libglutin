@@ -5,23 +5,24 @@ use glutin::event::*;
 use glutin_convert_window_id;
 
 use std::mem::transmute;
+use boxer::boxes::{ValueBox, ValueBoxPointer};
 
 #[derive(Debug, Default)]
 #[repr(C)]
 pub struct GlutinEvent {
-    window_id: BoxerUint128,
-    event_type: GlutinEventType,
-    touch: GlutinTouchEvent,
-    mouse_wheel: GlutinMouseWheelEvent,
-    mouse_input: GlutinMouseInputEvent,
-    cursor_moved: GlutinCursorMovedEvent,
-    keyboard_input: GlutinEventKeyboardInput,
-    received_character: GlutinEventReceivedCharacter,
-    window_resized: GlutinWindowResizedEvent,
-    scale_factor: GlutinWindowScaleFactorChangedEvent,
-    window_moved: GlutinWindowMovedEvent,
-    window_focused: GlutinWindowFocusedEvent,
-    modifiers: GlutinEventModifiersState,
+    pub window_id: BoxerUint128,
+    pub event_type: GlutinEventType,
+    pub touch: GlutinTouchEvent,
+    pub mouse_wheel: GlutinMouseWheelEvent,
+    pub mouse_input: GlutinMouseInputEvent,
+    pub cursor_moved: GlutinCursorMovedEvent,
+    pub keyboard_input: GlutinEventKeyboardInput,
+    pub received_character: GlutinEventReceivedCharacter,
+    pub window_resized: GlutinWindowResizedEvent,
+    pub scale_factor: GlutinWindowScaleFactorChangedEvent,
+    pub window_moved: GlutinWindowMovedEvent,
+    pub window_focused: GlutinWindowFocusedEvent,
+    pub modifiers: GlutinEventModifiersState,
 }
 
 #[derive(Debug, Default)]
@@ -272,7 +273,7 @@ impl Default for GlutinEventInputElementState {
 ///////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////// E V E N T S ////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////
-pub(crate) fn glutin_events_loop_process_event(
+pub fn glutin_events_loop_process_event(
     global_event: glutin::event::Event<()>,
     c_event: &mut GlutinEvent,
 ) -> bool {
@@ -337,6 +338,16 @@ pub(crate) fn glutin_events_loop_process_event(
                     ..
                 } => {
                     glutin_event_loop_process_cursor_moved(c_event, device_id, position);
+                }
+                WindowEvent::CursorEntered {
+                    device_id
+                } => {
+                    glutin_event_loop_process_cursor_entered(c_event, device_id);
+                }
+                WindowEvent::CursorLeft {
+                    device_id
+                } => {
+                    glutin_event_loop_process_cursor_left(c_event, device_id);
                 }
                 WindowEvent::MouseWheel {
                     device_id,
@@ -523,6 +534,22 @@ fn glutin_event_loop_process_cursor_moved<T: Into<f64>>(
     c_event.cursor_moved.y = position.y.into();
 }
 
+fn glutin_event_loop_process_cursor_entered(
+    c_event: &mut GlutinEvent,
+    device_id: DeviceId,
+) {
+    c_event.event_type = GlutinEventType::WindowEventCursorEntered;
+    c_event.cursor_moved.device_id = unsafe { transmute(&device_id) };
+}
+
+fn glutin_event_loop_process_cursor_left(
+    c_event: &mut GlutinEvent,
+    device_id: DeviceId,
+) {
+    c_event.event_type = GlutinEventType::WindowEventCursorLeft;
+    c_event.cursor_moved.device_id = unsafe { transmute(&device_id) };
+}
+
 fn glutin_event_loop_process_keyboard_input(
     c_event: &mut GlutinEvent,
     device_id: DeviceId,
@@ -577,4 +604,9 @@ fn glutin_event_loop_process_received_character(c_event: &mut GlutinEvent, chara
     if length >= 4 {
         c_event.received_character.byte_4 = bytes[3];
     }
+}
+
+#[no_mangle]
+pub fn glutin_event_drop(_ptr: *mut ValueBox<GlutinEvent>) {
+    _ptr.drop();
 }

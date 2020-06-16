@@ -1,10 +1,117 @@
 use boxer::boxes::{ValueBox, ValueBoxPointer};
 use boxer::CBox;
-use events::{glutin_events_loop_process_event, GlutinControlFlow, GlutinEvent};
+use events::{glutin_events_loop_process_event, GlutinControlFlow, GlutinEvent, GlutinEventType};
+use glutin::event::Event;
 use glutin::event_loop::{ControlFlow, EventLoop, EventLoopProxy, EventLoopWindowTarget};
 use glutin::monitor::MonitorHandle;
 use glutin::platform::desktop::EventLoopExtDesktop;
+use std::sync::Mutex;
 use std::time;
+use std::borrow::{Borrow, BorrowMut};
+
+pub struct PollingEventLoop {
+    events: Mutex<Vec<GlutinEvent>>,
+    event_loop: EventLoop<()>,
+}
+
+impl PollingEventLoop {
+    pub fn new() -> Self {
+        Self {
+            events: Mutex::new(vec![]),
+            event_loop: EventLoop::new(),
+        }
+    }
+
+    pub fn poll(&mut self) -> Option<GlutinEvent> {
+        match self.events.lock() {
+            Ok(mut guard) => guard.pop(),
+            Err(err) => {
+                println!(
+                    "[PollingEventLoop::poll] Error locking the guard: {:?}",
+                    err
+                );
+                None
+            }
+        }
+    }
+
+    pub fn push(&mut self, event: GlutinEvent) {
+        Self::push_event(&mut self.events, event);
+    }
+
+    pub fn push_event(events: &mut Mutex<Vec<GlutinEvent>>, event: GlutinEvent) {
+        match events.lock() {
+            Ok(mut guard) => {
+                guard.push(event);
+            }
+            Err(err) => println!(
+                "[PollingEventLoop::push] Error locking the guard: {:?}",
+                err
+            ),
+        }
+    }
+
+    pub fn run_return(&mut self) {
+        let event_loop = &mut self.event_loop;
+        let events = &mut self.events;
+
+        event_loop.run_return(move
+            |event, _, control_flow: &mut ControlFlow| {
+                *control_flow = ControlFlow::Poll;
+
+                let mut c_event = GlutinEvent::default();
+                let processed = glutin_events_loop_process_event(event, &mut c_event);
+                if processed {
+                    if c_event.event_type != GlutinEventType::MainEventsCleared
+                        && c_event.event_type != GlutinEventType::RedrawEventsCleared
+                        && c_event.event_type != GlutinEventType::NewEvents
+                    {
+                        Self::push_event(events, c_event);
+                    }
+                }
+            },
+        )
+    }
+}
+
+#[no_mangle]
+pub fn glutin_polling_event_loop_new() -> *mut ValueBox<PollingEventLoop> {
+    ValueBox::new(PollingEventLoop::new()).into_raw()
+}
+
+#[no_mangle]
+pub fn glutin_polling_event_loop_poll(
+    _ptr: *mut ValueBox<PollingEventLoop>,
+) -> *mut ValueBox<GlutinEvent> {
+    _ptr.with_not_null_return(std::ptr::null_mut(), |event_loop| match event_loop.poll() {
+        None => std::ptr::null_mut(),
+        Some(event) => ValueBox::new(event).into_raw(),
+    })
+}
+
+#[no_mangle]
+pub fn glutin_polling_event_loop_run_return(
+    _ptr_event_loop: *mut ValueBox<PollingEventLoop>
+) {
+    if _ptr_event_loop.is_null() {
+        eprintln!("[glutin_polling_event_loop_run_return] _ptr_event_loop is null");
+        return;
+    }
+
+    _ptr_event_loop.with_not_null(|event_loop| {
+        event_loop.run_return();
+    });
+}
+
+#[no_mangle]
+pub fn glutin_main_test(a: u32, b: u32) -> u32 {
+    a + b
+}
+
+#[no_mangle]
+pub fn glutin_polling_event_loop_drop(_ptr: *mut ValueBox<PollingEventLoop>) {
+    _ptr.drop()
+}
 
 #[no_mangle]
 pub fn glutin_create_events_loop() -> *mut ValueBox<EventLoop<()>> {
@@ -22,7 +129,7 @@ pub fn glutin_events_loop_run_return(
     callback: extern "C" fn(*mut GlutinEvent) -> GlutinControlFlow,
 ) {
     if _ptr_events_loop.is_null() {
-        eprintln!("[glutin_events_loop_run_forever] _ptr_events_loop is null");
+        eprintln!("[glutin_events_loop_run_return] _ptr_events_loop is null");
         return;
     }
 
