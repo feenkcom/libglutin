@@ -6,6 +6,7 @@ use glutin_convert_window_id;
 
 use std::mem::transmute;
 use boxer::boxes::{ValueBox, ValueBoxPointer};
+use std::collections::HashMap;
 
 #[derive(Debug, Default)]
 #[repr(C)]
@@ -273,148 +274,208 @@ impl Default for GlutinEventInputElementState {
 ///////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////// E V E N T S ////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////
-pub fn glutin_events_loop_process_event(
-    global_event: glutin::event::Event<()>,
-    c_event: &mut GlutinEvent,
-) -> bool {
-    c_event.event_type = GlutinEventType::Unknown;
-    let mut result = true;
 
-    match global_event {
-        glutin::event::Event::WindowEvent { event, window_id } => {
-            let id: BoxerUint128 = glutin_convert_window_id(window_id);
-            c_event.window_id.clone_from(&id);
+pub struct EventProcessor {
+    pub key_buffer: HashMap<ScanCode, VirtualKeyCode>
+}
 
-            match event {
-                WindowEvent::Resized(PhysicalSize { width, height }) => {
-                    c_event.event_type = GlutinEventType::WindowEventResized;
-                    c_event.window_resized.width = width;
-                    c_event.window_resized.height = height;
-                }
-                WindowEvent::ScaleFactorChanged {
-                    scale_factor,
-                    new_inner_size,
-                } => {
-                    c_event.event_type = GlutinEventType::WindowEventScaleFactorChanged;
-                    c_event.scale_factor.scale_factor = scale_factor;
-                    c_event.scale_factor.width = new_inner_size.width;
-                    c_event.scale_factor.height = new_inner_size.height;
-                }
-                WindowEvent::Focused(is_focused) => {
-                    c_event.event_type = GlutinEventType::WindowEventFocused;
-                    c_event.window_focused.is_focused = is_focused;
-                }
-                WindowEvent::Moved(PhysicalPosition { x, y }) => {
-                    c_event.event_type = GlutinEventType::WindowEventMoved;
-                    c_event.window_moved.x = x as i32;
-                    c_event.window_moved.y = y as i32;
-                }
-                WindowEvent::CloseRequested => {
-                    c_event.event_type = GlutinEventType::WindowEventCloseRequested;
-                }
-                WindowEvent::Destroyed => {
-                    c_event.event_type = GlutinEventType::WindowEventDestroyed;
-                }
-                WindowEvent::Touch(Touch {
-                    device_id,
-                    phase,
-                    location,
-                    force: _,
-                    id,
-                }) => {
-                    glutin_event_loop_process_touch(c_event, device_id, phase, location, id);
-                }
-                WindowEvent::MouseInput {
-                    device_id,
-                    state,
-                    button,
-                    ..
-                } => {
-                    glutin_event_loop_process_mouse_input(c_event, device_id, state, button);
-                }
-                WindowEvent::CursorMoved {
-                    device_id,
-                    position,
-                    ..
-                } => {
-                    glutin_event_loop_process_cursor_moved(c_event, device_id, position);
-                }
-                WindowEvent::CursorEntered {
-                    device_id
-                } => {
-                    glutin_event_loop_process_cursor_entered(c_event, device_id);
-                }
-                WindowEvent::CursorLeft {
-                    device_id
-                } => {
-                    glutin_event_loop_process_cursor_left(c_event, device_id);
-                }
-                WindowEvent::MouseWheel {
-                    device_id,
-                    delta,
-                    phase,
-                    ..
-                } => {
-                    glutin_event_loop_process_mouse_wheel(c_event, device_id, delta, phase);
-                }
-                WindowEvent::KeyboardInput {
-                    device_id,
-                    input,
-                    is_synthetic,
-                } => {
-                    glutin_event_loop_process_keyboard_input(
-                        c_event,
+impl EventProcessor {
+    pub fn new() -> Self {
+        Self {
+            key_buffer: HashMap::new()
+        }
+    }
+
+    pub fn process(&mut self, global_event: glutin::event::Event<()>, c_event: &mut GlutinEvent) -> bool {
+        c_event.event_type = GlutinEventType::Unknown;
+        let mut result = true;
+
+        match global_event {
+            glutin::event::Event::WindowEvent { event, window_id } => {
+                let id: BoxerUint128 = glutin_convert_window_id(window_id);
+                c_event.window_id.clone_from(&id);
+
+                match event {
+                    WindowEvent::Resized(PhysicalSize { width, height }) => {
+                        c_event.event_type = GlutinEventType::WindowEventResized;
+                        c_event.window_resized.width = width;
+                        c_event.window_resized.height = height;
+                    }
+                    WindowEvent::ScaleFactorChanged {
+                        scale_factor,
+                        new_inner_size,
+                    } => {
+                        c_event.event_type = GlutinEventType::WindowEventScaleFactorChanged;
+                        c_event.scale_factor.scale_factor = scale_factor;
+                        c_event.scale_factor.width = new_inner_size.width;
+                        c_event.scale_factor.height = new_inner_size.height;
+                    }
+                    WindowEvent::Focused(is_focused) => {
+                        c_event.event_type = GlutinEventType::WindowEventFocused;
+                        c_event.window_focused.is_focused = is_focused;
+                    }
+                    WindowEvent::Moved(PhysicalPosition { x, y }) => {
+                        c_event.event_type = GlutinEventType::WindowEventMoved;
+                        c_event.window_moved.x = x as i32;
+                        c_event.window_moved.y = y as i32;
+                    }
+                    WindowEvent::CloseRequested => {
+                        c_event.event_type = GlutinEventType::WindowEventCloseRequested;
+                    }
+                    WindowEvent::Destroyed => {
+                        c_event.event_type = GlutinEventType::WindowEventDestroyed;
+                    }
+                    WindowEvent::Touch(Touch {
+                        device_id,
+                        phase,
+                        location,
+                        force: _,
+                        id,
+                    }) => {
+                        glutin_event_loop_process_touch(c_event, device_id, phase, location, id);
+                    }
+                    WindowEvent::MouseInput {
+                        device_id,
+                        state,
+                        button,
+                        ..
+                    } => {
+                        glutin_event_loop_process_mouse_input(c_event, device_id, state, button);
+                    }
+                    WindowEvent::CursorMoved {
+                        device_id,
+                        position,
+                        ..
+                    } => {
+                        glutin_event_loop_process_cursor_moved(c_event, device_id, position);
+                    }
+                    WindowEvent::CursorEntered {
+                        device_id
+                    } => {
+                        glutin_event_loop_process_cursor_entered(c_event, device_id);
+                    }
+                    WindowEvent::CursorLeft {
+                        device_id
+                    } => {
+                        glutin_event_loop_process_cursor_left(c_event, device_id);
+                    }
+                    WindowEvent::MouseWheel {
+                        device_id,
+                        delta,
+                        phase,
+                        ..
+                    } => {
+                        glutin_event_loop_process_mouse_wheel(c_event, device_id, delta, phase);
+                    }
+                    WindowEvent::KeyboardInput {
                         device_id,
                         input,
                         is_synthetic,
-                    );
+                    } => {
+                        self.process_keyboard_input(
+                            c_event,
+                            device_id,
+                            input,
+                            is_synthetic,
+                        );
+                    }
+                    WindowEvent::ReceivedCharacter(character) => {
+                        glutin_event_loop_process_received_character(c_event, character);
+                    }
+                    WindowEvent::ModifiersChanged(modifiers) => {
+                        c_event.event_type = GlutinEventType::ModifiersChanged;
+                        c_event.modifiers.alt = modifiers.alt();
+                        c_event.modifiers.ctrl = modifiers.ctrl();
+                        c_event.modifiers.logo = modifiers.logo();
+                        c_event.modifiers.shift = modifiers.shift();
+                    }
+                    _ => ({ result = false }),
                 }
-                WindowEvent::ReceivedCharacter(character) => {
-                    glutin_event_loop_process_received_character(c_event, character);
-                }
-                WindowEvent::ModifiersChanged(modifiers) => {
-                    c_event.event_type = GlutinEventType::ModifiersChanged;
-                    c_event.modifiers.alt = modifiers.alt();
-                    c_event.modifiers.ctrl = modifiers.ctrl();
-                    c_event.modifiers.logo = modifiers.logo();
-                    c_event.modifiers.shift = modifiers.shift();
-                }
-                _ => ({ result = false }),
+            }
+
+            glutin::event::Event::NewEvents(_start_cause) => {
+                c_event.event_type = GlutinEventType::NewEvents;
+            }
+            glutin::event::Event::MainEventsCleared => {
+                c_event.event_type = GlutinEventType::MainEventsCleared;
+            }
+            glutin::event::Event::RedrawEventsCleared => {
+                c_event.event_type = GlutinEventType::RedrawEventsCleared;
+            }
+            glutin::event::Event::LoopDestroyed => {
+                c_event.event_type = GlutinEventType::LoopDestroyed;
+            }
+            glutin::event::Event::RedrawRequested(window_id) => {
+                c_event.event_type = GlutinEventType::RedrawRequested;
+                let id: BoxerUint128 = glutin_convert_window_id(window_id);
+                c_event.window_id.clone_from(&id);
+            }
+            glutin::event::Event::Suspended => {
+                c_event.event_type = GlutinEventType::Suspended;
+            }
+            glutin::event::Event::Resumed => {
+                c_event.event_type = GlutinEventType::Resumed;
+            }
+            glutin::event::Event::UserEvent(()) => {
+                c_event.event_type = GlutinEventType::UserEvent;
+            }
+            Event::DeviceEvent {
+                device_id: _,
+                event: _,
+            } => result = false,
+        }
+        result
+    }
+
+    fn process_keyboard_input(
+        &mut self,
+        c_event: &mut GlutinEvent,
+        device_id: DeviceId,
+        input: KeyboardInput,
+        is_synthetic: bool,
+    ) {
+        c_event.event_type = GlutinEventType::WindowEventKeyboardInput;
+        c_event.keyboard_input.device_id = unsafe { transmute(&device_id) };
+        c_event.keyboard_input.is_synthetic = is_synthetic;
+        c_event.keyboard_input.scan_code = input.scancode;
+
+        match input.state {
+            ElementState::Pressed => {
+                c_event.keyboard_input.state = GlutinEventInputElementState::Pressed;
+            }
+            ElementState::Released => {
+                c_event.keyboard_input.state = GlutinEventInputElementState::Released;
             }
         }
 
-        glutin::event::Event::NewEvents(_start_cause) => {
-            c_event.event_type = GlutinEventType::NewEvents;
+        let key_code = match input.state {
+            ElementState::Pressed => {
+                match input.virtual_keycode {
+                    None => { None },
+                    Some(code) => {
+                        (&mut self.key_buffer).insert(input.scancode, code);
+                        Some(code)
+                    },
+                }
+            }
+            ElementState::Released => {
+                match self.key_buffer.remove(&input.scancode) {
+                    None => { input.virtual_keycode },
+                    Some(code) => { Some(code)},
+                }
+            }
+        };
+
+        match key_code {
+            Some(code) => {
+                c_event.keyboard_input.has_virtual_keycode = true;
+                c_event.keyboard_input.virtual_keycode = code;
+            }
+            None => {
+                c_event.keyboard_input.has_virtual_keycode = false;
+            }
         }
-        glutin::event::Event::MainEventsCleared => {
-            c_event.event_type = GlutinEventType::MainEventsCleared;
-        }
-        glutin::event::Event::RedrawEventsCleared => {
-            c_event.event_type = GlutinEventType::RedrawEventsCleared;
-        }
-        glutin::event::Event::LoopDestroyed => {
-            c_event.event_type = GlutinEventType::LoopDestroyed;
-        }
-        glutin::event::Event::RedrawRequested(window_id) => {
-            c_event.event_type = GlutinEventType::RedrawRequested;
-            let id: BoxerUint128 = glutin_convert_window_id(window_id);
-            c_event.window_id.clone_from(&id);
-        }
-        glutin::event::Event::Suspended => {
-            c_event.event_type = GlutinEventType::Suspended;
-        }
-        glutin::event::Event::Resumed => {
-            c_event.event_type = GlutinEventType::Resumed;
-        }
-        glutin::event::Event::UserEvent(()) => {
-            c_event.event_type = GlutinEventType::UserEvent;
-        }
-        Event::DeviceEvent {
-            device_id: _,
-            event: _,
-        } => result = false,
     }
-    result
 }
 
 fn glutin_event_loop_process_mouse_wheel(
@@ -548,36 +609,7 @@ fn glutin_event_loop_process_cursor_left(
     c_event.event_type = GlutinEventType::WindowEventCursorLeft;
 }
 
-fn glutin_event_loop_process_keyboard_input(
-    c_event: &mut GlutinEvent,
-    device_id: DeviceId,
-    input: KeyboardInput,
-    is_synthetic: bool,
-) {
-    c_event.event_type = GlutinEventType::WindowEventKeyboardInput;
-    c_event.keyboard_input.device_id = unsafe { transmute(&device_id) };
-    c_event.keyboard_input.is_synthetic = is_synthetic;
-    c_event.keyboard_input.scan_code = input.scancode;
 
-    match input.state {
-        ElementState::Released => {
-            c_event.keyboard_input.state = GlutinEventInputElementState::Released;
-        }
-        ElementState::Pressed => {
-            c_event.keyboard_input.state = GlutinEventInputElementState::Pressed;
-        }
-    }
-
-    match input.virtual_keycode {
-        Some(keycode) => {
-            c_event.keyboard_input.has_virtual_keycode = true;
-            c_event.keyboard_input.virtual_keycode = keycode;
-        }
-        None => {
-            c_event.keyboard_input.has_virtual_keycode = false;
-        }
-    }
-}
 
 fn glutin_event_loop_process_received_character(c_event: &mut GlutinEvent, character: char) {
     c_event.event_type = GlutinEventType::WindowEventReceivedCharacter;

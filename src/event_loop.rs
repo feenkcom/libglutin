@@ -1,6 +1,6 @@
 use boxer::boxes::{ValueBox, ValueBoxPointer};
 use boxer::CBox;
-use events::{glutin_events_loop_process_event, GlutinControlFlow, GlutinEvent, GlutinEventType};
+use events::{GlutinControlFlow, GlutinEvent, GlutinEventType, EventProcessor};
 use glutin::event::Event;
 use glutin::event_loop::{ControlFlow, EventLoop, EventLoopProxy, EventLoopWindowTarget};
 use glutin::monitor::MonitorHandle;
@@ -55,12 +55,14 @@ impl PollingEventLoop {
         let event_loop = &mut self.event_loop;
         let events = &mut self.events;
 
+        let mut event_processor = EventProcessor::new();
+
         event_loop.run_return(move
             |event, _, control_flow: &mut ControlFlow| {
                 *control_flow = ControlFlow::Poll;
 
                 let mut c_event = GlutinEvent::default();
-                let processed = glutin_events_loop_process_event(event, &mut c_event);
+                let processed = event_processor.process(event, &mut c_event);
                 if processed {
                     if c_event.event_type != GlutinEventType::MainEventsCleared
                         && c_event.event_type != GlutinEventType::RedrawEventsCleared
@@ -133,12 +135,14 @@ pub fn glutin_events_loop_run_return(
         return;
     }
 
+    let mut event_processor = EventProcessor::new();
+
     _ptr_events_loop.with_not_null(|event_loop| {
         event_loop.run_return(
             |event, _events_loop: &EventLoopWindowTarget<()>, control_flow: &mut ControlFlow| {
                 *control_flow = ControlFlow::Poll;
                 let mut c_event: GlutinEvent = Default::default();
-                let processed = glutin_events_loop_process_event(event, &mut c_event);
+                let processed = event_processor.process(event, &mut c_event);
                 if processed {
                     let c_event_ptr = CBox::into_raw(c_event);
                     let c_control_flow = callback(c_event_ptr);
