@@ -453,10 +453,15 @@ impl EventProcessor {
                 match input.virtual_keycode {
                     None => { None },
                     Some(code) => {
-                        if !is_synthetic {
-                            (&mut self.key_buffer).insert(input.scancode, code);
+                        match self.key_buffer.get(&input.scancode) {
+                            None => {
+                                (&mut self.key_buffer).insert(input.scancode, code);
+                                Some(code)
+                            },
+                            Some(code) => {
+                                Some(code.clone())
+                            },
                         }
-                        Some(code)
                     },
                 }
             }
