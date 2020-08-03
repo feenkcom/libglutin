@@ -7,6 +7,7 @@ use glutin_convert_window_id;
 use std::mem::transmute;
 use boxer::boxes::{ValueBox, ValueBoxPointer};
 use std::collections::HashMap;
+use event_loop::GlutinCustomEvent;
 
 #[derive(Debug, Default)]
 #[repr(C)]
@@ -24,6 +25,7 @@ pub struct GlutinEvent {
     pub window_moved: GlutinWindowMovedEvent,
     pub window_focused: GlutinWindowFocusedEvent,
     pub modifiers: GlutinEventModifiersState,
+    pub user_event: GlutinEventUserEvent,
 }
 
 #[derive(Debug, Default)]
@@ -151,6 +153,12 @@ pub struct GlutinEventModifiersState {
 pub struct GlutinEventMouseButton {
     button_type: GlutinEventMouseButtonType,
     button_code: u8,
+}
+
+#[derive(Debug, Copy, Clone, Default)]
+#[repr(C)]
+pub struct GlutinEventUserEvent {
+    event: GlutinCustomEvent
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////
@@ -286,7 +294,7 @@ impl EventProcessor {
         }
     }
 
-    pub fn process(&mut self, global_event: glutin::event::Event<()>, c_event: &mut GlutinEvent) -> bool {
+    pub fn process(&mut self, global_event: glutin::event::Event<GlutinCustomEvent>, c_event: &mut GlutinEvent) -> bool {
         c_event.event_type = GlutinEventType::Unknown;
         let mut result = true;
 
@@ -416,8 +424,9 @@ impl EventProcessor {
             glutin::event::Event::Resumed => {
                 c_event.event_type = GlutinEventType::Resumed;
             }
-            glutin::event::Event::UserEvent(()) => {
+            glutin::event::Event::UserEvent(custom_event) => {
                 c_event.event_type = GlutinEventType::UserEvent;
+                c_event.user_event.event = custom_event;
             }
             Event::DeviceEvent {
                 device_id: _,

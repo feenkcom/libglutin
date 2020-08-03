@@ -3,22 +3,28 @@ use boxer::CBox;
 use events::{GlutinControlFlow, GlutinEvent, GlutinEventType, EventProcessor};
 use glutin::event::Event;
 use glutin::event_loop::{ControlFlow, EventLoop, EventLoopProxy, EventLoopWindowTarget};
+use glutin::event_loop::EventLoopClosed;
 use glutin::monitor::MonitorHandle;
 use glutin::platform::desktop::EventLoopExtDesktop;
-use std::sync::Mutex;
+use std::sync::{Mutex, Arc};
 use std::time;
 use std::borrow::{Borrow, BorrowMut};
+use std::ffi::c_void;
+
+pub type GlutinCustomEvent = u32;
+pub type GlutinEventLoop = EventLoop<GlutinCustomEvent>;
+pub type GlutinEventLoopProxy = EventLoopProxy<GlutinCustomEvent>;
 
 pub struct PollingEventLoop {
     events: Mutex<Vec<GlutinEvent>>,
-    event_loop: EventLoop<()>,
+    event_loop: GlutinEventLoop,
 }
 
 impl PollingEventLoop {
     pub fn new() -> Self {
         Self {
             events: Mutex::new(vec![]),
-            event_loop: EventLoop::new(),
+            event_loop: GlutinEventLoop::with_user_event(),
         }
     }
 
@@ -76,6 +82,50 @@ impl PollingEventLoop {
     }
 }
 
+#[repr(C)]
+pub struct GlutinEventLoopWaker {
+    proxy: Arc<GlutinEventLoopProxy>,
+}
+
+impl GlutinEventLoopWaker {
+    pub fn new(event_loop: &GlutinEventLoop) -> Self {
+        Self {
+            proxy: Arc::new(event_loop.create_proxy())
+        }
+    }
+
+    pub fn wake(&self, event: GlutinCustomEvent) -> Result<(), EventLoopClosed<GlutinCustomEvent>> {
+        self.proxy.send_event(event)
+    }
+}
+
+extern "C" fn glutin_waker_wake(waker_ptr: *const c_void, event: GlutinCustomEvent) -> bool {
+    let ptr = waker_ptr as *mut ValueBox<GlutinEventLoopWaker>;
+    ptr.with_not_null_return(false, |waker| {
+        match waker.wake(event) {
+            Ok(_) => { true },
+            Err(_) => { false },
+        }
+    })
+}
+
+#[no_mangle]
+pub fn glutin_event_loop_waker_create(event_loop_ptr: *mut ValueBox<GlutinEventLoop>) -> *mut ValueBox<GlutinEventLoopWaker> {
+    event_loop_ptr.with_not_null_return(std::ptr::null_mut(), |event_loop| {
+        ValueBox::new(GlutinEventLoopWaker::new(event_loop)).into_raw()
+    })
+}
+
+#[no_mangle]
+pub fn glutin_event_loop_waker_function() -> extern "C" fn(*const c_void, u32) -> bool {
+    glutin_waker_wake
+}
+
+#[no_mangle]
+pub fn glutin_event_loop_waker_drop(_ptr: *mut ValueBox<GlutinEventLoopWaker>) {
+    _ptr.drop()
+}
+
 #[no_mangle]
 pub fn glutin_polling_event_loop_new() -> *mut ValueBox<PollingEventLoop> {
     ValueBox::new(PollingEventLoop::new()).into_raw()
@@ -116,18 +166,18 @@ pub fn glutin_polling_event_loop_drop(_ptr: *mut ValueBox<PollingEventLoop>) {
 }
 
 #[no_mangle]
-pub fn glutin_create_events_loop() -> *mut ValueBox<EventLoop<()>> {
-    ValueBox::new(EventLoop::new()).into_raw()
+pub fn glutin_create_events_loop() -> *mut ValueBox<GlutinEventLoop> {
+    ValueBox::new(GlutinEventLoop::with_user_event()).into_raw()
 }
 
 #[no_mangle]
-pub fn glutin_destroy_events_loop(_ptr: *mut ValueBox<EventLoop<()>>) {
+pub fn glutin_destroy_events_loop(_ptr: *mut ValueBox<GlutinEventLoop>) {
     _ptr.drop()
 }
 
 #[no_mangle]
 pub fn glutin_events_loop_run_return(
-    _ptr_events_loop: *mut ValueBox<EventLoop<()>>,
+    _ptr_events_loop: *mut ValueBox<GlutinEventLoop>,
     callback: extern "C" fn(*mut GlutinEvent) -> GlutinControlFlow,
 ) {
     if _ptr_events_loop.is_null() {
@@ -139,7 +189,7 @@ pub fn glutin_events_loop_run_return(
 
     _ptr_events_loop.with_not_null(|event_loop| {
         event_loop.run_return(
-            |event, _events_loop: &EventLoopWindowTarget<()>, control_flow: &mut ControlFlow| {
+            |event, _events_loop: &EventLoopWindowTarget<GlutinCustomEvent>, control_flow: &mut ControlFlow| {
                 *control_flow = ControlFlow::Poll;
                 let mut c_event: GlutinEvent = Default::default();
                 let processed = event_processor.process(event, &mut c_event);
@@ -173,7 +223,7 @@ pub enum GlutinEventLoopType {
 }
 
 #[cfg(target_os = "linux")]
-fn get_event_loop_type(_event_loop: &EventLoop<()>) -> GlutinEventLoopType {
+fn get_event_loop_type(_event_loop: &GlutinEventLoop) -> GlutinEventLoopType {
     use glutin::platform::unix::EventLoopWindowTargetExtUnix;
     if _event_loop.is_wayland() {
         return GlutinEventLoopType::Wayland;
@@ -185,23 +235,23 @@ fn get_event_loop_type(_event_loop: &EventLoop<()>) -> GlutinEventLoopType {
 }
 
 #[cfg(target_os = "windows")]
-fn get_event_loop_type(_event_loop: &EventLoop<()>) -> GlutinEventLoopType {
+fn get_event_loop_type(_event_loop: &GlutinEventLoop) -> GlutinEventLoopType {
     GlutinEventLoopType::Windows
 }
 
 #[cfg(target_os = "macos")]
-fn get_event_loop_type(_event_loop: &EventLoop<()>) -> GlutinEventLoopType {
+fn get_event_loop_type(_event_loop: &GlutinEventLoop) -> GlutinEventLoopType {
     GlutinEventLoopType::MacOS
 }
 
 #[cfg(not(any(target_os = "windows", target_os = "macos", target_os = "linux")))]
-fn get_event_loop_type(_event_loop: &EventLoop<()>) -> GlutinEventLoopType {
+fn get_event_loop_type(_event_loop: &GlutinEventLoop) -> GlutinEventLoopType {
     GlutinEventLoopType::Unknown
 }
 
 #[no_mangle]
 fn glutin_events_loop_get_type(
-    _ptr_event_loop: *mut ValueBox<EventLoop<()>>,
+    _ptr_event_loop: *mut ValueBox<GlutinEventLoop>,
 ) -> GlutinEventLoopType {
     _ptr_event_loop.with_not_null_return(GlutinEventLoopType::Unknown, |event_loop| {
         get_event_loop_type(event_loop)
@@ -210,13 +260,13 @@ fn glutin_events_loop_get_type(
 
 #[no_mangle]
 fn glutin_events_loop_create_proxy(
-    _ptr_event_loop: *mut ValueBox<EventLoop<()>>,
-) -> *mut ValueBox<EventLoopProxy<()>> {
+    _ptr_event_loop: *mut ValueBox<GlutinEventLoop>,
+) -> *mut ValueBox<GlutinEventLoopProxy> {
     _ptr_event_loop.with(|event_loop| ValueBox::new(event_loop.create_proxy()).into_raw())
 }
 
 #[no_mangle]
-fn glutin_events_loop_drop_proxy(_ptr: *mut ValueBox<EventLoopProxy<()>>) {
+fn glutin_events_loop_drop_proxy(_ptr: *mut ValueBox<GlutinEventLoopProxy>) {
     _ptr.drop();
 }
 
@@ -226,7 +276,7 @@ fn glutin_events_loop_drop_proxy(_ptr: *mut ValueBox<EventLoopProxy<()>>) {
 
 #[no_mangle]
 fn glutin_events_loop_get_primary_monitor(
-    _ptr_event_loop: *mut ValueBox<EventLoop<()>>,
+    _ptr_event_loop: *mut ValueBox<GlutinEventLoop>,
 ) -> *mut ValueBox<MonitorHandle> {
     _ptr_event_loop.with(|event_loop| ValueBox::new(event_loop.primary_monitor()).into_raw())
 }

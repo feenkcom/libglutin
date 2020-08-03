@@ -8,11 +8,12 @@ use glutin::{
 };
 use std::os::raw::c_void;
 use ContextApi;
+use event_loop::GlutinEventLoop;
 
 #[cfg(target_os = "linux")]
 fn build_context_surfaceless<T1: ContextCurrentState>(
     cb: ContextBuilder<T1>,
-    el: &EventLoop<()>,
+    el: &GlutinEventLoop,
 ) -> Result<Context<NotCurrent>, CreationError> {
     use glutin::platform::unix::EventLoopWindowTargetExtUnix;
     use glutin::platform::unix::HeadlessContextExt;
@@ -26,7 +27,7 @@ fn build_context_surfaceless<T1: ContextCurrentState>(
 
 fn build_context_headless<T1: ContextCurrentState>(
     cb: ContextBuilder<T1>,
-    el: &EventLoop<()>,
+    el: &GlutinEventLoop,
 ) -> Result<Context<NotCurrent>, CreationError> {
     let size_one = PhysicalSize::new(1, 1);
     cb.build_headless(el, size_one)
@@ -43,7 +44,7 @@ fn build_context_osmesa<T1: ContextCurrentState>(
 
 #[cfg(target_os = "linux")]
 fn build_context<T1: ContextCurrentState>(
-    el: &EventLoop<()>,
+    el: &GlutinEventLoop,
     cb: ContextBuilder<T1>,
 ) -> Result<Context<NotCurrent>, [CreationError; 3]> {
     // On unix operating systems, you should always try for surfaceless first,
@@ -82,7 +83,7 @@ fn build_context<T1: ContextCurrentState>(
 
 #[cfg(not(target_os = "linux"))]
 fn build_context<T1: ContextCurrentState>(
-    el: &EventLoop<()>,
+    el: &GlutinEventLoop,
     cb: ContextBuilder<T1>,
 ) -> Result<Context<NotCurrent>, CreationError> {
     if cfg!(debug_assertions) {
@@ -93,7 +94,7 @@ fn build_context<T1: ContextCurrentState>(
 
 #[no_mangle]
 pub fn glutin_create_headless_context(
-    _ptr_events_loop: *mut ValueBox<EventLoop<()>>,
+    _ptr_events_loop: *mut ValueBox<GlutinEventLoop>,
     mut _ptr_context_builder: *mut ValueBox<ContextBuilder<NotCurrent>>,
 ) -> *mut ValueBox<Context<NotCurrent>> {
     if _ptr_events_loop.is_null() {
@@ -132,7 +133,7 @@ pub fn glutin_create_headless_context(
 // I *do not* consume the context builder
 #[no_mangle]
 pub fn glutin_try_headless_context(
-    _ptr_events_loop: *mut ValueBox<EventLoop<()>>,
+    _ptr_events_loop: *mut ValueBox<GlutinEventLoop>,
     _ptr_context_builder: *mut ValueBox<ContextBuilder<NotCurrent>>,
 ) -> bool {
     let builder_copy = _ptr_context_builder

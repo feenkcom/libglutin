@@ -13,10 +13,11 @@ use glutin::{
 };
 use std::os::raw::c_void;
 use {glutin_convert_window_id, ContextApi};
+use event_loop::GlutinEventLoop;
 
 #[no_mangle]
 pub fn glutin_create_windowed_context(
-    _ptr_events_loop: *mut ValueBox<EventLoop<()>>,
+    _ptr_events_loop: *mut ValueBox<GlutinEventLoop>,
     mut _ptr_window_builder: *mut ValueBox<WindowBuilder>,
     mut _ptr_context_builder: *mut ValueBox<ContextBuilder<NotCurrent>>,
 ) -> *mut ValueBox<WindowedContext<PossiblyCurrent>> {
