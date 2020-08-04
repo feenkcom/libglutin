@@ -3,6 +3,9 @@
 extern crate boxer;
 extern crate glutin;
 extern crate libc;
+#[macro_use]
+extern crate log;
+extern crate simple_logger;
 
 pub mod context_builder;
 pub mod enums;
@@ -62,6 +65,11 @@ impl From<Api> for ContextApi {
 #[no_mangle]
 pub fn glutin_test() -> bool {
     return true;
+}
+
+#[no_mangle]
+pub fn glutin_init_logger() {
+    simple_logger::init().unwrap();
 }
 
 #[no_mangle]

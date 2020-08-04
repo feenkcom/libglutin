@@ -1,15 +1,15 @@
 use boxer::boxes::{ValueBox, ValueBoxPointer};
 use boxer::CBox;
-use events::{GlutinControlFlow, GlutinEvent, GlutinEventType, EventProcessor};
+use events::{EventProcessor, GlutinControlFlow, GlutinEvent, GlutinEventType};
 use glutin::event::Event;
-use glutin::event_loop::{ControlFlow, EventLoop, EventLoopProxy, EventLoopWindowTarget};
 use glutin::event_loop::EventLoopClosed;
+use glutin::event_loop::{ControlFlow, EventLoop, EventLoopProxy, EventLoopWindowTarget};
 use glutin::monitor::MonitorHandle;
 use glutin::platform::desktop::EventLoopExtDesktop;
-use std::sync::{Mutex, Arc};
-use std::time;
 use std::borrow::{Borrow, BorrowMut};
 use std::ffi::c_void;
+use std::sync::{Arc, Mutex};
+use std::time;
 
 pub type GlutinCustomEvent = u32;
 pub type GlutinEventLoop = EventLoop<GlutinCustomEvent>;
@@ -63,22 +63,20 @@ impl PollingEventLoop {
 
         let mut event_processor = EventProcessor::new();
 
-        event_loop.run_return(move
-            |event, _, control_flow: &mut ControlFlow| {
-                *control_flow = ControlFlow::Poll;
+        event_loop.run_return(move |event, _, control_flow: &mut ControlFlow| {
+            *control_flow = ControlFlow::Poll;
 
-                let mut c_event = GlutinEvent::default();
-                let processed = event_processor.process(event, &mut c_event);
-                if processed {
-                    if c_event.event_type != GlutinEventType::MainEventsCleared
-                        && c_event.event_type != GlutinEventType::RedrawEventsCleared
-                        && c_event.event_type != GlutinEventType::NewEvents
-                    {
-                        Self::push_event(events, c_event);
-                    }
+            let mut c_event = GlutinEvent::default();
+            let processed = event_processor.process(event, &mut c_event);
+            if processed {
+                if c_event.event_type != GlutinEventType::MainEventsCleared
+                    && c_event.event_type != GlutinEventType::RedrawEventsCleared
+                    && c_event.event_type != GlutinEventType::NewEvents
+                {
+                    Self::push_event(events, c_event);
                 }
-            },
-        )
+            }
+        })
     }
 }
 
@@ -90,7 +88,7 @@ pub struct GlutinEventLoopWaker {
 impl GlutinEventLoopWaker {
     pub fn new(event_loop: &GlutinEventLoop) -> Self {
         Self {
-            proxy: Arc::new(event_loop.create_proxy())
+            proxy: Arc::new(event_loop.create_proxy()),
         }
     }
 
@@ -101,16 +99,16 @@ impl GlutinEventLoopWaker {
 
 extern "C" fn glutin_waker_wake(waker_ptr: *const c_void, event: GlutinCustomEvent) -> bool {
     let ptr = waker_ptr as *mut ValueBox<GlutinEventLoopWaker>;
-    ptr.with_not_null_return(false, |waker| {
-        match waker.wake(event) {
-            Ok(_) => { true },
-            Err(_) => { false },
-        }
+    ptr.with_not_null_return(false, |waker| match waker.wake(event) {
+        Ok(_) => true,
+        Err(_) => false,
     })
 }
 
 #[no_mangle]
-pub fn glutin_event_loop_waker_create(event_loop_ptr: *mut ValueBox<GlutinEventLoop>) -> *mut ValueBox<GlutinEventLoopWaker> {
+pub fn glutin_event_loop_waker_create(
+    event_loop_ptr: *mut ValueBox<GlutinEventLoop>,
+) -> *mut ValueBox<GlutinEventLoopWaker> {
     event_loop_ptr.with_not_null_return(std::ptr::null_mut(), |event_loop| {
         ValueBox::new(GlutinEventLoopWaker::new(event_loop)).into_raw()
     })
@@ -142,9 +140,7 @@ pub fn glutin_polling_event_loop_poll(
 }
 
 #[no_mangle]
-pub fn glutin_polling_event_loop_run_return(
-    _ptr_event_loop: *mut ValueBox<PollingEventLoop>
-) {
+pub fn glutin_polling_event_loop_run_return(_ptr_event_loop: *mut ValueBox<PollingEventLoop>) {
     if _ptr_event_loop.is_null() {
         eprintln!("[glutin_polling_event_loop_run_return] _ptr_event_loop is null");
         return;
@@ -189,7 +185,9 @@ pub fn glutin_events_loop_run_return(
 
     _ptr_events_loop.with_not_null(|event_loop| {
         event_loop.run_return(
-            |event, _events_loop: &EventLoopWindowTarget<GlutinCustomEvent>, control_flow: &mut ControlFlow| {
+            |event,
+             _events_loop: &EventLoopWindowTarget<GlutinCustomEvent>,
+             control_flow: &mut ControlFlow| {
                 *control_flow = ControlFlow::Poll;
                 let mut c_event: GlutinEvent = Default::default();
                 let processed = event_processor.process(event, &mut c_event);

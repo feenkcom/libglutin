@@ -4,10 +4,10 @@ use glutin::dpi::{LogicalPosition, PhysicalPosition, PhysicalSize};
 use glutin::event::*;
 use glutin_convert_window_id;
 
-use std::mem::transmute;
 use boxer::boxes::{ValueBox, ValueBoxPointer};
-use std::collections::HashMap;
 use event_loop::GlutinCustomEvent;
+use std::collections::HashMap;
+use std::mem::transmute;
 
 #[derive(Debug, Default)]
 #[repr(C)]
@@ -158,7 +158,7 @@ pub struct GlutinEventMouseButton {
 #[derive(Debug, Copy, Clone, Default)]
 #[repr(C)]
 pub struct GlutinEventUserEvent {
-    event: GlutinCustomEvent
+    event: GlutinCustomEvent,
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////
@@ -284,17 +284,21 @@ impl Default for GlutinEventInputElementState {
 ///////////////////////////////////////////////////////////////////////////////////////
 
 pub struct EventProcessor {
-    pub key_buffer: HashMap<ScanCode, VirtualKeyCode>
+    pub key_buffer: HashMap<ScanCode, VirtualKeyCode>,
 }
 
 impl EventProcessor {
     pub fn new() -> Self {
         Self {
-            key_buffer: HashMap::new()
+            key_buffer: HashMap::new(),
         }
     }
 
-    pub fn process(&mut self, global_event: glutin::event::Event<GlutinCustomEvent>, c_event: &mut GlutinEvent) -> bool {
+    pub fn process(
+        &mut self,
+        global_event: glutin::event::Event<GlutinCustomEvent>,
+        c_event: &mut GlutinEvent,
+    ) -> bool {
         c_event.event_type = GlutinEventType::Unknown;
         let mut result = true;
 
@@ -357,14 +361,10 @@ impl EventProcessor {
                     } => {
                         glutin_event_loop_process_cursor_moved(c_event, device_id, position);
                     }
-                    WindowEvent::CursorEntered {
-                        device_id
-                    } => {
+                    WindowEvent::CursorEntered { device_id } => {
                         glutin_event_loop_process_cursor_entered(c_event, device_id);
                     }
-                    WindowEvent::CursorLeft {
-                        device_id
-                    } => {
+                    WindowEvent::CursorLeft { device_id } => {
                         glutin_event_loop_process_cursor_left(c_event, device_id);
                     }
                     WindowEvent::MouseWheel {
@@ -380,12 +380,7 @@ impl EventProcessor {
                         input,
                         is_synthetic,
                     } => {
-                        self.process_keyboard_input(
-                            c_event,
-                            device_id,
-                            input,
-                            is_synthetic,
-                        );
+                        self.process_keyboard_input(c_event, device_id, input, is_synthetic);
                     }
                     WindowEvent::ReceivedCharacter(character) => {
                         glutin_event_loop_process_received_character(c_event, character);
@@ -458,28 +453,20 @@ impl EventProcessor {
         }
 
         let key_code = match input.state {
-            ElementState::Pressed => {
-                match input.virtual_keycode {
-                    None => { None },
-                    Some(code) => {
-                        match self.key_buffer.get(&input.scancode) {
-                            None => {
-                                (&mut self.key_buffer).insert(input.scancode, code);
-                                Some(code)
-                            },
-                            Some(code) => {
-                                Some(code.clone())
-                            },
-                        }
-                    },
-                }
-            }
-            ElementState::Released => {
-                match self.key_buffer.remove(&input.scancode) {
-                    None => { input.virtual_keycode },
-                    Some(code) => { Some(code)},
-                }
-            }
+            ElementState::Pressed => match input.virtual_keycode {
+                None => None,
+                Some(code) => match self.key_buffer.get(&input.scancode) {
+                    None => {
+                        (&mut self.key_buffer).insert(input.scancode, code);
+                        Some(code)
+                    }
+                    Some(code) => Some(code.clone()),
+                },
+            },
+            ElementState::Released => match self.key_buffer.remove(&input.scancode) {
+                None => input.virtual_keycode,
+                Some(code) => Some(code),
+            },
         };
 
         match key_code {
@@ -611,21 +598,13 @@ fn glutin_event_loop_process_cursor_moved<T: Into<f64>>(
     c_event.cursor_moved.y = position.y.into();
 }
 
-fn glutin_event_loop_process_cursor_entered(
-    c_event: &mut GlutinEvent,
-    device_id: DeviceId,
-) {
+fn glutin_event_loop_process_cursor_entered(c_event: &mut GlutinEvent, device_id: DeviceId) {
     c_event.event_type = GlutinEventType::WindowEventCursorEntered;
 }
 
-fn glutin_event_loop_process_cursor_left(
-    c_event: &mut GlutinEvent,
-    device_id: DeviceId,
-) {
+fn glutin_event_loop_process_cursor_left(c_event: &mut GlutinEvent, device_id: DeviceId) {
     c_event.event_type = GlutinEventType::WindowEventCursorLeft;
 }
-
-
 
 fn glutin_event_loop_process_received_character(c_event: &mut GlutinEvent, character: char) {
     c_event.event_type = GlutinEventType::WindowEventReceivedCharacter;

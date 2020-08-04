@@ -1,14 +1,94 @@
 use boxer::boxes::{ValueBox, ValueBoxPointer};
 use boxer::string::{BoxerString, BoxerStringPointer};
+use context_builder::GlutinContextBuilder;
+use event_loop::GlutinEventLoop;
 use glutin::dpi::PhysicalSize;
 use glutin::event_loop::EventLoop;
 use glutin::{
-    Context, ContextBuilder, ContextCurrentState, ContextError, CreationError, NotCurrent,
+    Api, Context, ContextBuilder, ContextCurrentState, ContextError, CreationError, NotCurrent,
     PossiblyCurrent,
 };
-use std::os::raw::c_void;
+use std::ffi::c_void;
 use ContextApi;
-use event_loop::GlutinEventLoop;
+
+#[derive(Debug)]
+pub enum GlutinHeadlessContext {
+    NotCurrent(Context<NotCurrent>),
+    PossiblyCurrent(Context<PossiblyCurrent>),
+}
+
+impl GlutinHeadlessContext {
+    pub fn make_current(self) -> Self {
+        match self {
+            GlutinHeadlessContext::NotCurrent(context) => match unsafe { context.make_current() } {
+                Ok(new_context) => GlutinHeadlessContext::PossiblyCurrent(new_context),
+                Err((old_context, err)) => {
+                    match err {
+                        ContextError::OsError(string) => {
+                            error!("Failed to make context current: {}", string)
+                        }
+                        ContextError::IoError(error) => {
+                            error!("Failed to make context current: {:?}", error)
+                        }
+                        ContextError::ContextLost => {
+                            error!("Failed to make context current: ContextLost")
+                        }
+                        ContextError::FunctionUnavailable => {
+                            error!("Failed to make context current: FunctionUnavailable")
+                        }
+                    }
+                    GlutinHeadlessContext::NotCurrent(old_context)
+                }
+            },
+            GlutinHeadlessContext::PossiblyCurrent(context) => {
+                match unsafe { context.make_current() } {
+                    Ok(new_context) => GlutinHeadlessContext::PossiblyCurrent(new_context),
+                    Err((old_context, err)) => {
+                        match err {
+                            ContextError::OsError(string) => {
+                                error!("Failed to make context current: {}", string)
+                            }
+                            ContextError::IoError(error) => {
+                                error!("Failed to make context current: {:?}", error)
+                            }
+                            ContextError::ContextLost => {
+                                error!("Failed to make context current: ContextLost")
+                            }
+                            ContextError::FunctionUnavailable => {
+                                error!("Failed to make context current: FunctionUnavailable")
+                            }
+                        }
+                        GlutinHeadlessContext::PossiblyCurrent(old_context)
+                    }
+                }
+            }
+        }
+    }
+
+    pub fn is_current(&self) -> bool {
+        match self {
+            GlutinHeadlessContext::NotCurrent(context) => context.is_current(),
+            GlutinHeadlessContext::PossiblyCurrent(context) => context.is_current(),
+        }
+    }
+
+    pub fn get_api(&self) -> Api {
+        match self {
+            GlutinHeadlessContext::NotCurrent(context) => context.get_api(),
+            GlutinHeadlessContext::PossiblyCurrent(context) => context.get_api(),
+        }
+    }
+
+    pub fn get_proc_address(&self, addr: &str) -> *const c_void {
+        match self {
+            GlutinHeadlessContext::NotCurrent(context) => {
+                error!("Unable to get proc address of a not current context");
+                std::ptr::null()
+            }
+            GlutinHeadlessContext::PossiblyCurrent(context) => context.get_proc_address(addr),
+        }
+    }
+}
 
 #[cfg(target_os = "linux")]
 fn build_context_surfaceless<T1: ContextCurrentState>(
@@ -54,25 +134,19 @@ fn build_context<T1: ContextCurrentState>(
     // If willing, you could attempt to use hidden windows instead of os mesa,
     // but note that you must handle events for the window that come on the
     // events loop.
-    if cfg!(debug_assertions) {
-        println!("[Glutin][build_context] Trying surfaceless");
-    }
+    debug!("Trying surfaceless");
     let err1 = match build_context_surfaceless(cb.clone(), el) {
         Ok(ctx) => return Ok(ctx),
         Err(err) => err,
     };
 
-    if cfg!(debug_assertions) {
-        println!("[Glutin][build_context] Trying headless");
-    }
+    debug!("Trying headless");
     let err2 = match build_context_headless(cb.clone(), el) {
         Ok(ctx) => return Ok(ctx),
         Err(err) => err,
     };
 
-    if cfg!(debug_assertions) {
-        println!("[Glutin][build_context] Trying osmesa");
-    }
+    debug!("Trying osmesa");
     let err3 = match build_context_osmesa(cb) {
         Ok(ctx) => return Ok(ctx),
         Err(err) => err,
@@ -86,43 +160,47 @@ fn build_context<T1: ContextCurrentState>(
     el: &GlutinEventLoop,
     cb: ContextBuilder<T1>,
 ) -> Result<Context<NotCurrent>, CreationError> {
-    if cfg!(debug_assertions) {
-        println!("[Glutin][build_context] Trying headless");
-    }
+    debug!("Trying headless with {:?}", &cb);
     build_context_headless(cb.clone(), el)
 }
 
 #[no_mangle]
 pub fn glutin_create_headless_context(
     _ptr_events_loop: *mut ValueBox<GlutinEventLoop>,
-    mut _ptr_context_builder: *mut ValueBox<ContextBuilder<NotCurrent>>,
-) -> *mut ValueBox<Context<NotCurrent>> {
+    mut _ptr_context_builder: *mut ValueBox<GlutinContextBuilder>,
+) -> *mut ValueBox<GlutinHeadlessContext> {
     if _ptr_events_loop.is_null() {
-        eprintln!("[glutin_create_windowed_context] Event loop is null");
+        error!("Event loop is null");
         return std::ptr::null_mut();
     }
 
     if _ptr_context_builder.is_null() {
-        eprintln!("[glutin_create_windowed_context] Context builder is null");
+        error!("Context builder is null");
         return std::ptr::null_mut();
     }
 
     _ptr_events_loop.with(|event_loop| {
         _ptr_context_builder.with_value_consumed(|context_builder| {
-            if cfg!(debug_assertions) {
-                println!("[Glutin] OpenGL Headless Context: {:?}", context_builder);
-                println!(
-                    "[Glutin] Primary monitor: {:?}",
-                    event_loop.primary_monitor()
-                );
-            }
+            let context_builder_info = format!("{:?}", &context_builder);
 
-            match build_context(event_loop, context_builder) {
-                Ok(context) => ValueBox::new(context).into_raw(),
+            let context = match context_builder {
+                GlutinContextBuilder::NotCurrent(builder) => {
+                    build_context(event_loop, builder.clone())
+                }
+                GlutinContextBuilder::PossiblyCurrent(builder) => {
+                    build_context(event_loop, builder.clone())
+                }
+            };
+            match context {
+                Ok(context) => {
+                    info!("Created headless context with {}", context_builder_info);
+                    ValueBox::new(GlutinHeadlessContext::NotCurrent(context)).into_raw()
+                }
                 Err(err) => {
-                    if cfg!(debug_assertions) {
-                        eprintln!("[Glutin] Could not create headless context {:?}", err);
-                    }
+                    error!(
+                        "Could not create headless context with {} due to {:?}",
+                        context_builder_info, err
+                    );
                     std::ptr::null_mut()
                 }
             }
@@ -134,58 +212,38 @@ pub fn glutin_create_headless_context(
 #[no_mangle]
 pub fn glutin_try_headless_context(
     _ptr_events_loop: *mut ValueBox<GlutinEventLoop>,
-    _ptr_context_builder: *mut ValueBox<ContextBuilder<NotCurrent>>,
+    mut _ptr_context_builder: *mut ValueBox<GlutinContextBuilder>,
 ) -> bool {
-    let builder_copy = _ptr_context_builder
-        .with_value(|context_builder| ValueBox::new(context_builder).into_raw());
-    let context = glutin_create_headless_context(_ptr_events_loop, builder_copy);
+    debug!("[glutin_try_headless_context] Trying if a context works");
+
+    let context = glutin_create_headless_context(_ptr_events_loop, _ptr_context_builder);
     let is_valid = context.is_valid();
     context.drop();
     is_valid
 }
 
 #[no_mangle]
-pub fn glutin_context_make_current(mut _ptr: *mut ValueBox<Context<PossiblyCurrent>>) {
-    _ptr.with_value_and_box_consumed(|window, value_box| {
-        let context: Context<PossiblyCurrent>;
-
-        match unsafe { window.make_current() } {
-            Ok(new_context) => context = new_context,
-            Err((old_context, err)) => {
-                context = old_context;
-                match err {
-                    ContextError::OsError(string) => {
-                        eprintln!("OS Error in make_current: {}", string)
-                    }
-                    ContextError::IoError(error) => {
-                        eprintln!("IO Error in make_current: {:?}", error)
-                    }
-                    ContextError::ContextLost => eprintln!("ContextLost Error in make_current"),
-                    ContextError::FunctionUnavailable => {
-                        eprintln!("FunctionUnavailable Error in make_current")
-                    }
-                }
-            }
-        }
+pub fn glutin_context_make_current(mut _ptr: *mut ValueBox<GlutinHeadlessContext>) {
+    _ptr.with_value_and_box_consumed(|context, value_box| {
         unsafe {
-            value_box.mutate(context);
+            value_box.mutate(context.make_current());
         };
     });
 }
 
 #[no_mangle]
-pub fn glutin_context_is_current(_ptr_context: *mut ValueBox<Context<PossiblyCurrent>>) -> bool {
+pub fn glutin_context_is_current(_ptr_context: *mut ValueBox<GlutinHeadlessContext>) -> bool {
     _ptr_context.with_not_null_return(false, |context| context.is_current())
 }
 
 #[no_mangle]
-pub fn glutin_context_get_api(_ptr_context: *mut ValueBox<Context<PossiblyCurrent>>) -> ContextApi {
+pub fn glutin_context_get_api(_ptr_context: *mut ValueBox<GlutinHeadlessContext>) -> ContextApi {
     _ptr_context.with_not_null_return(ContextApi::Unknown, |context| context.get_api().into())
 }
 
 #[no_mangle]
 pub fn glutin_context_get_proc_address(
-    _ptr_context: *mut ValueBox<Context<PossiblyCurrent>>,
+    _ptr_context: *mut ValueBox<GlutinHeadlessContext>,
     _ptr_symbol: *mut BoxerString,
 ) -> *const c_void {
     _ptr_context.with_not_null_return(std::ptr::null(), |context| {
@@ -194,6 +252,6 @@ pub fn glutin_context_get_proc_address(
 }
 
 #[no_mangle]
-pub fn glutin_destroy_context(_ptr: *mut ValueBox<Context<PossiblyCurrent>>) {
+pub fn glutin_destroy_context(_ptr: *mut ValueBox<GlutinHeadlessContext>) {
     _ptr.drop();
 }
