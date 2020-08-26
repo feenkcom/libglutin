@@ -2,13 +2,11 @@ use boxer::boxes::{ValueBox, ValueBoxPointer};
 use boxer::number::BoxerUint128;
 use boxer::point::BoxerPointI32;
 use boxer::size::BoxerSizeU32;
-use boxer::string::{BoxerString, BoxerStringPointer};
-use boxer::CBox;
+use boxer::string::BoxerString;
 use context_builder::GlutinContextBuilder;
 use enums::GlutinCursorIcon;
 use event_loop::GlutinEventLoop;
 use glutin::dpi::{PhysicalPosition, PhysicalSize};
-use glutin::event_loop::EventLoop;
 use glutin::window::Window;
 use glutin::window::WindowBuilder;
 use glutin::{Api, ContextError, NotCurrent, PixelFormat, PossiblyCurrent, WindowedContext};
@@ -35,14 +33,14 @@ impl GlutinWindowedContext {
 
     pub fn swap_buffers(&self) -> Result<(), ContextError> {
         match self {
-            GlutinWindowedContext::NotCurrent(context) => Err(ContextError::FunctionUnavailable),
+            GlutinWindowedContext::NotCurrent(_) => Err(ContextError::FunctionUnavailable),
             GlutinWindowedContext::PossiblyCurrent(context) => context.swap_buffers(),
         }
     }
 
     pub fn get_proc_address(&self, addr: &str) -> *const c_void {
         match self {
-            GlutinWindowedContext::NotCurrent(context) => {
+            GlutinWindowedContext::NotCurrent(_) => {
                 error!("Unable to get proc address of a not current context");
                 std::ptr::null()
             }
@@ -73,7 +71,7 @@ impl GlutinWindowedContext {
 
     pub fn get_pixel_format(&self) -> Option<PixelFormat> {
         match self {
-            GlutinWindowedContext::NotCurrent(context) => {
+            GlutinWindowedContext::NotCurrent(_) => {
                 error!("Unable to get pixel format of the not current context");
                 None
             }
@@ -83,9 +81,7 @@ impl GlutinWindowedContext {
 
     pub fn resize(&self, size: PhysicalSize<u32>) {
         match self {
-            GlutinWindowedContext::NotCurrent(context) => {
-                error!("Unable to resize not current context")
-            }
+            GlutinWindowedContext::NotCurrent(_) => error!("Unable to resize not current context"),
             GlutinWindowedContext::PossiblyCurrent(context) => context.resize(size),
         }
     }
@@ -142,7 +138,7 @@ pub fn glutin_windowed_context_make_current(mut _ptr_window: *mut ValueBox<Gluti
     _ptr_window.with_value_and_box_consumed(|window, value_box| {
         let context: GlutinWindowedContext;
 
-        match unsafe { window.make_current() } {
+        match window.make_current() {
             Ok(windowed_context) => context = windowed_context,
             Err((windowed_context, err)) => {
                 context = windowed_context;
@@ -180,10 +176,12 @@ pub fn glutin_windowed_context_swap_buffers(_ptr_window: *mut ValueBox<GlutinWin
 #[no_mangle]
 pub fn glutin_windowed_context_get_proc_address(
     _ptr_window: *mut ValueBox<GlutinWindowedContext>,
-    _ptr_symbol: *mut BoxerString,
+    _ptr_symbol: *mut ValueBox<BoxerString>,
 ) -> *const c_void {
     _ptr_window.with_not_null_return(std::ptr::null(), |window| {
-        _ptr_symbol.with(|symbol| window.get_proc_address(symbol.to_string().as_str()))
+        _ptr_symbol.with_not_null_return(std::ptr::null(), |symbol| {
+            window.get_proc_address(symbol.to_string().as_str())
+        })
     })
 }
 
@@ -313,12 +311,11 @@ pub fn glutin_windowed_context_get_id(
 #[no_mangle]
 pub fn glutin_windowed_context_set_title(
     _ptr_window: *mut ValueBox<GlutinWindowedContext>,
-    _ptr_boxer_string: *mut BoxerString,
+    _ptr_boxer_string: *mut ValueBox<BoxerString>,
 ) {
     _ptr_window.with_not_null(|window| {
-        CBox::with_raw(_ptr_boxer_string, |string| {
-            window.window().set_title(string.to_string().as_ref())
-        })
+        _ptr_boxer_string
+            .with_not_null(|string| window.window().set_title(string.to_string().as_ref()))
     });
 }
 

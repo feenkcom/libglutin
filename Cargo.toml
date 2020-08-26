@@ -6,7 +6,7 @@ authors = ["Aliaksei Syrel <alex.syrel@gmail.com>"]
 [dependencies]
 glutin = { git = "https://github.com/syrel/glutin", rev ="0b1971f880f68ee3c2dd83e777b6f20be980c3b4" }
 libc = "0.2.65"
-boxer = { git = "https://github.com/feenkcom/gtoolkit-boxer" }
+boxer = { git = "https://github.com/feenkcom/gtoolkit-boxer", rev = "a79e2fd8003527ac52ddb7bc9968e5e7ead70448" }
 log = "0.4"
 simple_logger = "1.6.0"
 

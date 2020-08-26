@@ -1,5 +1,5 @@
 use boxer::boxes::{ValueBox, ValueBoxPointer};
-use boxer::string::{BoxerString, BoxerStringPointer};
+use boxer::string::BoxerString;
 use glutin::dpi::LogicalSize;
 use glutin::window::WindowBuilder;
 
@@ -16,7 +16,7 @@ pub fn glutin_destroy_window_builder(_ptr: *mut ValueBox<WindowBuilder>) {
 #[no_mangle]
 pub fn glutin_window_builder_with_title(
     mut _ptr_window_builder: *mut ValueBox<WindowBuilder>,
-    _ptr_boxer_string: *mut BoxerString,
+    _ptr_boxer_string: *mut ValueBox<BoxerString>,
 ) {
     _ptr_window_builder.with_not_null_value_mutate_consumed(|builder| {
         _ptr_boxer_string.with(|string| builder.with_title(string.to_string()))

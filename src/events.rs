@@ -598,11 +598,11 @@ fn glutin_event_loop_process_cursor_moved<T: Into<f64>>(
     c_event.cursor_moved.y = position.y.into();
 }
 
-fn glutin_event_loop_process_cursor_entered(c_event: &mut GlutinEvent, device_id: DeviceId) {
+fn glutin_event_loop_process_cursor_entered(c_event: &mut GlutinEvent, _: DeviceId) {
     c_event.event_type = GlutinEventType::WindowEventCursorEntered;
 }
 
-fn glutin_event_loop_process_cursor_left(c_event: &mut GlutinEvent, device_id: DeviceId) {
+fn glutin_event_loop_process_cursor_left(c_event: &mut GlutinEvent, _: DeviceId) {
     c_event.event_type = GlutinEventType::WindowEventCursorLeft;
 }
 

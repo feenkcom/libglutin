@@ -2,8 +2,8 @@ use boxer::boxes::{from_raw, ValueBox, ValueBoxPointer};
 use glutin::event_loop::EventLoop;
 use glutin::window::WindowBuilder;
 use glutin::{
-    Context, ContextBuilder, ContextCurrentState, CreationError, GlProfile, GlRequest, NotCurrent,
-    PixelFormatRequirements, PossiblyCurrent, WindowedContext,
+    ContextBuilder, CreationError, GlProfile, GlRequest, NotCurrent, PixelFormatRequirements,
+    PossiblyCurrent, WindowedContext,
 };
 use headless_context::GlutinHeadlessContext;
 use std::mem::ManuallyDrop;
@@ -73,11 +73,11 @@ pub fn glutin_context_builder_with_shared_windowed_context(
     mut _ptr_context_builder: *mut ValueBox<ContextBuilder<NotCurrent>>,
     mut _ptr_another_context: *mut ValueBox<WindowedContext<PossiblyCurrent>>,
 ) {
-    let mut c_value_box = unsafe { from_raw(_ptr_another_context) };
+    let c_value_box = unsafe { from_raw(_ptr_another_context) };
     let c_boxed_object = unsafe { from_raw(c_value_box.boxed()) };
     let c_object = *c_boxed_object;
 
-    let mut value_box = unsafe { from_raw(_ptr_context_builder) };
+    let value_box = unsafe { from_raw(_ptr_context_builder) };
     let boxed_object = unsafe { from_raw(value_box.boxed()) };
     let object = *boxed_object;
 
@@ -100,8 +100,7 @@ pub fn glutin_context_builder_with_shared_headless_context(
     let mut context_builder_box = ManuallyDrop::new(unsafe { from_raw(_ptr_context_builder) });
     let context_builder = *unsafe { from_raw(context_builder_box.boxed()) };
 
-    let mut another_context_value_box =
-        ManuallyDrop::new(unsafe { from_raw(_ptr_another_context) });
+    let another_context_value_box = ManuallyDrop::new(unsafe { from_raw(_ptr_another_context) });
     let another_context = ManuallyDrop::new(unsafe { from_raw(another_context_value_box.boxed()) });
 
     let new_builder = context_builder.with_shared_lists_headless(another_context.as_ref());

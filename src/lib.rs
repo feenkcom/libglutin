@@ -27,10 +27,10 @@ mod ext;
 
 use boxer::number::BoxerUint128;
 use boxer::string::BoxerString;
-use boxer::CBox;
 
 use glutin::window::WindowId;
 
+use boxer::boxes::{ValueBox, ValueBoxPointer};
 use glutin::Api;
 use std::mem::transmute_copy;
 
@@ -73,19 +73,13 @@ pub fn glutin_init_logger() {
 }
 
 #[no_mangle]
-pub fn glutin_println(_ptr_message: *mut BoxerString) {
-    CBox::with_optional_raw(_ptr_message, |option| match option {
-        None => {}
-        Some(message) => println!("{}", message.to_string()),
-    });
+pub fn glutin_println(_ptr_message: *mut ValueBox<BoxerString>) {
+    _ptr_message.with_not_null(|message| println!("{}", message.to_string()));
 }
 
 #[no_mangle]
-pub fn glutin_print(_ptr_message: *mut BoxerString) {
-    CBox::with_optional_raw(_ptr_message, |option| match option {
-        None => {}
-        Some(message) => print!("{}", message.to_string()),
-    });
+pub fn glutin_print(_ptr_message: *mut ValueBox<BoxerString>) {
+    _ptr_message.with_not_null(|message| print!("{}", message.to_string()));
 }
 
 pub fn glutin_convert_window_id(window_id: WindowId) -> BoxerUint128 {

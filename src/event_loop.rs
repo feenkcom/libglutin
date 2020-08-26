@@ -1,12 +1,9 @@
 use boxer::boxes::{ValueBox, ValueBoxPointer};
-use boxer::CBox;
 use events::{EventProcessor, GlutinControlFlow, GlutinEvent, GlutinEventType};
-use glutin::event::Event;
 use glutin::event_loop::EventLoopClosed;
 use glutin::event_loop::{ControlFlow, EventLoop, EventLoopProxy, EventLoopWindowTarget};
 use glutin::monitor::MonitorHandle;
 use glutin::platform::desktop::EventLoopExtDesktop;
-use std::borrow::{Borrow, BorrowMut};
 use std::ffi::c_void;
 use std::sync::{Arc, Mutex};
 use std::time;
@@ -192,9 +189,9 @@ pub fn glutin_events_loop_run_return(
                 let mut c_event: GlutinEvent = Default::default();
                 let processed = event_processor.process(event, &mut c_event);
                 if processed {
-                    let c_event_ptr = CBox::into_raw(c_event);
+                    let c_event_ptr = Box::into_raw(Box::new(c_event));
                     let c_control_flow = callback(c_event_ptr);
-                    CBox::drop(c_event_ptr);
+                    unsafe { Box::from_raw(c_event_ptr) };
                     match c_control_flow {
                         GlutinControlFlow::Poll => *control_flow = ControlFlow::Poll,
                         GlutinControlFlow::Wait => {

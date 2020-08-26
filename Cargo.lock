@@ -67,7 +67,10 @@ checksum = "0d8c1fef690941d3e7788d328517591fecc684c084084702d6ff1641e993699a"
 [[package]]
 name = "boxer"
 version = "0.1.0"
-source = "git+https://github.com/feenkcom/gtoolkit-boxer#189c9ae5ce6e89a83f2c0008e1bbcf225ac60146"
+source = "git+https://github.com/feenkcom/gtoolkit-boxer?rev=a79e2fd8003527ac52ddb7bc9968e5e7ead70448#a79e2fd8003527ac52ddb7bc9968e5e7ead70448"
+dependencies = [
+ "widestring",
+]
 
 [[package]]
 name = "byteorder"
@@ -1004,6 +1007,12 @@ dependencies = [
  "dlib",
  "lazy_static",
 ]
+
+[[package]]
+name = "widestring"
+version = "0.4.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a763e303c0e0f23b0da40888724762e802a8ffefbc22de4127ef42493c2ea68c"
 
 [[package]]
 name = "winapi"

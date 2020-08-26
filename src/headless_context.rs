@@ -1,9 +1,8 @@
 use boxer::boxes::{ValueBox, ValueBoxPointer};
-use boxer::string::{BoxerString, BoxerStringPointer};
+use boxer::string::BoxerString;
 use context_builder::GlutinContextBuilder;
 use event_loop::GlutinEventLoop;
 use glutin::dpi::PhysicalSize;
-use glutin::event_loop::EventLoop;
 use glutin::{
     Api, Context, ContextBuilder, ContextCurrentState, ContextError, CreationError, NotCurrent,
     PossiblyCurrent,
@@ -81,7 +80,7 @@ impl GlutinHeadlessContext {
 
     pub fn get_proc_address(&self, addr: &str) -> *const c_void {
         match self {
-            GlutinHeadlessContext::NotCurrent(context) => {
+            GlutinHeadlessContext::NotCurrent(_) => {
                 error!("Unable to get proc address of a not current context");
                 std::ptr::null()
             }
@@ -244,10 +243,12 @@ pub fn glutin_context_get_api(_ptr_context: *mut ValueBox<GlutinHeadlessContext>
 #[no_mangle]
 pub fn glutin_context_get_proc_address(
     _ptr_context: *mut ValueBox<GlutinHeadlessContext>,
-    _ptr_symbol: *mut BoxerString,
+    _ptr_symbol: *mut ValueBox<BoxerString>,
 ) -> *const c_void {
     _ptr_context.with_not_null_return(std::ptr::null(), |context| {
-        _ptr_symbol.with(|symbol| context.get_proc_address(symbol.to_string().as_str()))
+        _ptr_symbol.with_not_null_return(std::ptr::null(), |symbol| {
+            context.get_proc_address(symbol.to_string().as_str())
+        })
     })
 }
 
