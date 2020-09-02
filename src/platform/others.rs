@@ -1,4 +1,4 @@
-use boxer::boxes::ValueBox;
+use boxer::ValueBox;
 use glutin::window::WindowBuilder;
 
 #[no_mangle]
