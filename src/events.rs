@@ -4,7 +4,7 @@ use glutin::dpi::{LogicalPosition, PhysicalPosition, PhysicalSize};
 use glutin::event::*;
 use glutin_convert_window_id;
 
-use boxer::boxes::{ValueBox, ValueBoxPointer};
+use boxer::{ValueBox, ValueBoxPointerReference};
 use event_loop::GlutinCustomEvent;
 use std::collections::HashMap;
 use std::mem::transmute;
@@ -632,6 +632,6 @@ fn glutin_event_loop_process_received_character(c_event: &mut GlutinEvent, chara
 }
 
 #[no_mangle]
-pub fn glutin_event_drop(_ptr: *mut ValueBox<GlutinEvent>) {
+pub fn glutin_event_drop(_ptr: &mut *mut ValueBox<GlutinEvent>) {
     _ptr.drop();
 }

@@ -1,5 +1,5 @@
-use boxer::boxes::{ValueBox, ValueBoxPointer};
 use boxer::string::BoxerString;
+use boxer::{ValueBox, ValueBoxPointer, ValueBoxPointerReference};
 use glutin::dpi::LogicalSize;
 use glutin::window::WindowBuilder;
 
@@ -9,7 +9,7 @@ pub fn glutin_create_window_builder() -> *mut ValueBox<WindowBuilder> {
 }
 
 #[no_mangle]
-pub fn glutin_destroy_window_builder(_ptr: *mut ValueBox<WindowBuilder>) {
+pub fn glutin_destroy_window_builder(_ptr: &mut *mut ValueBox<WindowBuilder>) {
     _ptr.drop();
 }
 
@@ -18,8 +18,9 @@ pub fn glutin_window_builder_with_title(
     mut _ptr_window_builder: *mut ValueBox<WindowBuilder>,
     _ptr_boxer_string: *mut ValueBox<BoxerString>,
 ) {
-    _ptr_window_builder.with_not_null_value_mutate_consumed(|builder| {
-        _ptr_boxer_string.with(|string| builder.with_title(string.to_string()))
+    _ptr_boxer_string.with_not_null(|title| {
+        _ptr_window_builder
+            .with_not_null_value_mutate(|builder| builder.with_title(title.to_string()));
     });
 }
 
@@ -29,7 +30,7 @@ pub fn glutin_window_builder_with_decorations(
     with_decorations: bool,
 ) {
     _ptr_window_builder
-        .with_not_null_value_mutate_consumed(|builder| builder.with_decorations(with_decorations))
+        .with_not_null_value_mutate(|builder| builder.with_decorations(with_decorations))
 }
 
 #[no_mangle]
@@ -38,7 +39,7 @@ pub fn glutin_window_builder_with_transparency(
     with_transparency: bool,
 ) {
     _ptr_window_builder
-        .with_not_null_value_mutate_consumed(|builder| builder.with_transparent(with_transparency))
+        .with_not_null_value_mutate(|builder| builder.with_transparent(with_transparency))
 }
 
 #[no_mangle]
@@ -46,8 +47,7 @@ pub fn glutin_window_builder_with_resizable(
     mut _ptr_window_builder: *mut ValueBox<WindowBuilder>,
     with_resizable: bool,
 ) {
-    _ptr_window_builder
-        .with_not_null_value_mutate_consumed(|builder| builder.with_resizable(with_resizable))
+    _ptr_window_builder.with_not_null_value_mutate(|builder| builder.with_resizable(with_resizable))
 }
 
 #[no_mangle]
@@ -56,7 +56,7 @@ pub fn glutin_window_builder_with_dimensions(
     width: f64,
     height: f64,
 ) {
-    _ptr_window_builder.with_not_null_value_mutate_consumed(|builder| {
+    _ptr_window_builder.with_not_null_value_mutate(|builder| {
         builder.with_inner_size(LogicalSize::new(width, height))
     })
 }
@@ -66,8 +66,7 @@ pub fn glutin_window_builder_with_maximized(
     mut _ptr_window_builder: *mut ValueBox<WindowBuilder>,
     with_maximized: bool,
 ) {
-    _ptr_window_builder
-        .with_not_null_value_mutate_consumed(|builder| builder.with_maximized(with_maximized))
+    _ptr_window_builder.with_not_null_value_mutate(|builder| builder.with_maximized(with_maximized))
 }
 
 #[no_mangle]
@@ -75,8 +74,7 @@ pub fn glutin_window_builder_with_visibility(
     mut _ptr_window_builder: *mut ValueBox<WindowBuilder>,
     with_visibility: bool,
 ) {
-    _ptr_window_builder
-        .with_not_null_value_mutate_consumed(|builder| builder.with_visible(with_visibility))
+    _ptr_window_builder.with_not_null_value_mutate(|builder| builder.with_visible(with_visibility))
 }
 
 #[no_mangle]
@@ -84,7 +82,6 @@ pub fn glutin_window_builder_with_always_on_top(
     mut _ptr_window_builder: *mut ValueBox<WindowBuilder>,
     with_always_on_top: bool,
 ) {
-    _ptr_window_builder.with_not_null_value_mutate_consumed(|builder| {
-        builder.with_always_on_top(with_always_on_top)
-    })
+    _ptr_window_builder
+        .with_not_null_value_mutate(|builder| builder.with_always_on_top(with_always_on_top))
 }

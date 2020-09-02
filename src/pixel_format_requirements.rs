@@ -1,4 +1,4 @@
-use boxer::boxes::{ValueBox, ValueBoxPointer};
+use boxer::{ValueBox, ValueBoxPointer, ValueBoxPointerReference};
 use glutin::PixelFormatRequirements;
 
 #[no_mangle]
@@ -132,6 +132,6 @@ pub fn glutin_pixel_format_requirements_is_srgb(
 }
 
 #[no_mangle]
-pub fn glutin_pixel_format_requirements_drop(_ptr: *mut ValueBox<PixelFormatRequirements>) {
-    _ptr.drop()
+pub fn glutin_pixel_format_requirements_drop(_ptr: &mut *mut ValueBox<PixelFormatRequirements>) {
+    _ptr.drop();
 }

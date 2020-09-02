@@ -1,8 +1,8 @@
-use boxer::boxes::{ValueBox, ValueBoxPointer};
 use boxer::number::BoxerUint128;
 use boxer::point::BoxerPointI32;
 use boxer::size::BoxerSizeU32;
 use boxer::string::BoxerString;
+use boxer::{ValueBox, ValueBoxPointer, ValueBoxPointerReference};
 use context_builder::GlutinContextBuilder;
 use enums::GlutinCursorIcon;
 use event_loop::GlutinEventLoop;
@@ -109,8 +109,8 @@ pub fn glutin_create_windowed_context(
     }
 
     _ptr_events_loop.with_not_null_return(std::ptr::null_mut(), |event_loop| {
-        _ptr_context_builder.with_value_consumed(|context_builder| {
-            _ptr_window_builder.with_value_consumed(|window_builder| {
+        _ptr_context_builder.with_not_null_value_consumed_return(std::ptr::null_mut(),|context_builder| {
+            _ptr_window_builder.with_not_null_value_consumed_return(std::ptr::null_mut(),|window_builder| {
                 debug!("Windowed context builder: {:?}", &context_builder);
                 debug!("Window builder: {:?}", &window_builder);
 
@@ -135,7 +135,7 @@ pub fn glutin_windowed_context_make_current(mut _ptr_window: *mut ValueBox<Gluti
         return;
     }
 
-    _ptr_window.with_value_and_box_consumed(|window, value_box| {
+    _ptr_window.with_not_null_value_mutate(|window| {
         let context: GlutinWindowedContext;
 
         match window.make_current() {
@@ -152,9 +152,7 @@ pub fn glutin_windowed_context_make_current(mut _ptr_window: *mut ValueBox<Gluti
                 }
             }
         }
-        unsafe {
-            value_box.mutate(context);
-        };
+        context
     });
 }
 
@@ -328,6 +326,6 @@ pub fn glutin_windowed_context_set_cursor_icon(
 }
 
 #[no_mangle]
-pub fn glutin_destroy_windowed_context(_ptr: *mut ValueBox<GlutinWindowedContext>) {
+pub fn glutin_destroy_windowed_context(_ptr: &mut *mut ValueBox<GlutinWindowedContext>) {
     _ptr.drop();
 }

@@ -5,7 +5,7 @@ extern crate glutin;
 extern crate libc;
 #[macro_use]
 extern crate log;
-extern crate simple_logger;
+extern crate env_logger;
 
 pub mod context_builder;
 pub mod enums;
@@ -30,7 +30,7 @@ use boxer::string::BoxerString;
 
 use glutin::window::WindowId;
 
-use boxer::boxes::{ValueBox, ValueBoxPointer};
+use boxer::{ValueBox, ValueBoxPointer};
 use glutin::Api;
 use std::mem::transmute_copy;
 
@@ -69,7 +69,7 @@ pub fn glutin_test() -> bool {
 
 #[no_mangle]
 pub fn glutin_init_logger() {
-    simple_logger::init().unwrap();
+    env_logger::init();
 }
 
 #[no_mangle]

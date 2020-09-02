@@ -1,4 +1,4 @@
-use boxer::boxes::{ValueBox, ValueBoxPointer};
+use boxer::{ValueBox, ValueBoxPointer, ValueBoxPointerReference};
 use events::{EventProcessor, GlutinControlFlow, GlutinEvent, GlutinEventType};
 use glutin::event_loop::EventLoopClosed;
 use glutin::event_loop::{ControlFlow, EventLoop, EventLoopProxy, EventLoopWindowTarget};
@@ -117,8 +117,8 @@ pub fn glutin_event_loop_waker_function() -> extern "C" fn(*const c_void, u32) -
 }
 
 #[no_mangle]
-pub fn glutin_event_loop_waker_drop(_ptr: *mut ValueBox<GlutinEventLoopWaker>) {
-    _ptr.drop()
+pub fn glutin_event_loop_waker_drop(_ptr: &mut *mut ValueBox<GlutinEventLoopWaker>) {
+    _ptr.drop();
 }
 
 #[no_mangle]
@@ -154,8 +154,8 @@ pub fn glutin_main_test(a: u32, b: u32) -> u32 {
 }
 
 #[no_mangle]
-pub fn glutin_polling_event_loop_drop(_ptr: *mut ValueBox<PollingEventLoop>) {
-    _ptr.drop()
+pub fn glutin_polling_event_loop_drop(_ptr: &mut *mut ValueBox<PollingEventLoop>) {
+    _ptr.drop();
 }
 
 #[no_mangle]
@@ -164,8 +164,8 @@ pub fn glutin_create_events_loop() -> *mut ValueBox<GlutinEventLoop> {
 }
 
 #[no_mangle]
-pub fn glutin_destroy_events_loop(_ptr: *mut ValueBox<GlutinEventLoop>) {
-    _ptr.drop()
+pub fn glutin_destroy_events_loop(_ptr: &mut *mut ValueBox<GlutinEventLoop>) {
+    _ptr.drop();
 }
 
 #[no_mangle]
@@ -257,11 +257,13 @@ fn glutin_events_loop_get_type(
 fn glutin_events_loop_create_proxy(
     _ptr_event_loop: *mut ValueBox<GlutinEventLoop>,
 ) -> *mut ValueBox<GlutinEventLoopProxy> {
-    _ptr_event_loop.with(|event_loop| ValueBox::new(event_loop.create_proxy()).into_raw())
+    _ptr_event_loop.with_not_null_return(std::ptr::null_mut(), |event_loop| {
+        ValueBox::new(event_loop.create_proxy()).into_raw()
+    })
 }
 
 #[no_mangle]
-fn glutin_events_loop_drop_proxy(_ptr: *mut ValueBox<GlutinEventLoopProxy>) {
+fn glutin_events_loop_drop_proxy(_ptr: &mut *mut ValueBox<GlutinEventLoopProxy>) {
     _ptr.drop();
 }
 
@@ -273,12 +275,14 @@ fn glutin_events_loop_drop_proxy(_ptr: *mut ValueBox<GlutinEventLoopProxy>) {
 fn glutin_events_loop_get_primary_monitor(
     _ptr_event_loop: *mut ValueBox<GlutinEventLoop>,
 ) -> *mut ValueBox<MonitorHandle> {
-    _ptr_event_loop.with(|event_loop| ValueBox::new(event_loop.primary_monitor()).into_raw())
+    _ptr_event_loop.with_not_null_return(std::ptr::null_mut(), |event_loop| {
+        ValueBox::new(event_loop.primary_monitor()).into_raw()
+    })
 }
 
 #[no_mangle]
-fn glutin_primary_monitor_free(_ptr_monitor_id: *mut ValueBox<MonitorHandle>) {
-    _ptr_monitor_id.drop()
+fn glutin_primary_monitor_free(_ptr_monitor_id: &mut *mut ValueBox<MonitorHandle>) {
+    _ptr_monitor_id.drop();
 }
 
 #[no_mangle]

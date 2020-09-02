@@ -6,9 +6,9 @@ authors = ["Aliaksei Syrel <alex.syrel@gmail.com>"]
 [dependencies]
 glutin = { git = "https://github.com/syrel/glutin", rev ="0b1971f880f68ee3c2dd83e777b6f20be980c3b4" }
 libc = "0.2.65"
-boxer = { git = "https://github.com/feenkcom/gtoolkit-boxer", rev = "a79e2fd8003527ac52ddb7bc9968e5e7ead70448" }
+boxer = { git = "https://github.com/feenkcom/gtoolkit-boxer", rev = "8ffd345b6aabda55c5ab1b4914f6f3e5f92918d4" }
 log = "0.4"
-simple_logger = "1.6.0"
+env_logger = "0.7"
 
 [patch.crates-io]
 winit = { git = "https://github.com/rust-windowing/winit", rev = "6cfddfea21319ef7e28f4a6dc16e119ab033f550" }
