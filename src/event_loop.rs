@@ -276,7 +276,10 @@ fn glutin_events_loop_get_primary_monitor(
     _ptr_event_loop: *mut ValueBox<GlutinEventLoop>,
 ) -> *mut ValueBox<MonitorHandle> {
     _ptr_event_loop.with_not_null_return(std::ptr::null_mut(), |event_loop| {
-        ValueBox::new(event_loop.primary_monitor()).into_raw()
+        match event_loop.primary_monitor() {
+            None => std::ptr::null_mut(),
+            Some(monitor) => ValueBox::new(monitor).into_raw(),
+        }
     })
 }
 

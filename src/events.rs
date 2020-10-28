@@ -1,6 +1,6 @@
 use boxer::number::BoxerUint128;
 
-use glutin::dpi::{LogicalPosition, PhysicalPosition, PhysicalSize};
+use glutin::dpi::{PhysicalPosition, PhysicalSize};
 use glutin::event::*;
 use glutin_convert_window_id;
 
@@ -496,7 +496,7 @@ fn glutin_event_loop_process_mouse_wheel(
             c_event.mouse_wheel.delta.x = x as f64;
             c_event.mouse_wheel.delta.y = y as f64;
         }
-        MouseScrollDelta::PixelDelta(LogicalPosition { x, y }) => {
+        MouseScrollDelta::PixelDelta(PhysicalPosition { x, y }) => {
             c_event.mouse_wheel.delta.delta_type = GlutinEventMouseScrollDeltaType::PixelDelta;
             c_event.mouse_wheel.delta.x = x;
             c_event.mouse_wheel.delta.y = y;
