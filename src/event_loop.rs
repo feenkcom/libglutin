@@ -7,27 +7,26 @@ use glutin::platform::desktop::EventLoopExtDesktop;
 use std::ffi::c_void;
 use std::sync::{Arc, Mutex};
 use std::time;
+use std::collections::VecDeque;
 
 pub type GlutinCustomEvent = u32;
 pub type GlutinEventLoop = EventLoop<GlutinCustomEvent>;
 pub type GlutinEventLoopProxy = EventLoopProxy<GlutinCustomEvent>;
 
 pub struct PollingEventLoop {
-    events: Mutex<Vec<GlutinEvent>>,
-    event_loop: GlutinEventLoop,
+    events: Mutex<VecDeque<GlutinEvent>>,
 }
 
 impl PollingEventLoop {
     pub fn new() -> Self {
         Self {
-            events: Mutex::new(vec![]),
-            event_loop: GlutinEventLoop::with_user_event(),
+            events: Mutex::new(VecDeque::new()),
         }
     }
 
     pub fn poll(&mut self) -> Option<GlutinEvent> {
         match self.events.lock() {
-            Ok(mut guard) => guard.pop(),
+            Ok(mut guard) => guard.pop_front(),
             Err(err) => {
                 println!(
                     "[PollingEventLoop::poll] Error locking the guard: {:?}",
@@ -42,10 +41,10 @@ impl PollingEventLoop {
         Self::push_event(&mut self.events, event);
     }
 
-    pub fn push_event(events: &mut Mutex<Vec<GlutinEvent>>, event: GlutinEvent) {
+    pub fn push_event(events: &mut Mutex<VecDeque<GlutinEvent>>, event: GlutinEvent) {
         match events.lock() {
             Ok(mut guard) => {
-                guard.push(event);
+                guard.push_back(event);
             }
             Err(err) => println!(
                 "[PollingEventLoop::push] Error locking the guard: {:?}",
@@ -54,8 +53,7 @@ impl PollingEventLoop {
         }
     }
 
-    pub fn run_return(&mut self) {
-        let event_loop = &mut self.event_loop;
+    pub fn run_return(&mut self, event_loop: &mut GlutinEventLoop) {
         let events = &mut self.events;
 
         let mut event_processor = EventProcessor::new();
@@ -66,11 +64,15 @@ impl PollingEventLoop {
             let mut c_event = GlutinEvent::default();
             let processed = event_processor.process(event, &mut c_event);
             if processed {
-                if c_event.event_type != GlutinEventType::MainEventsCleared
-                    && c_event.event_type != GlutinEventType::RedrawEventsCleared
-                    && c_event.event_type != GlutinEventType::NewEvents
+                let event_type = c_event.event_type;
+                if event_type != GlutinEventType::MainEventsCleared
+                    && event_type != GlutinEventType::RedrawEventsCleared
+                    && event_type != GlutinEventType::NewEvents
                 {
                     Self::push_event(events, c_event);
+                }
+                if event_type == GlutinEventType::RedrawEventsCleared {
+                    *control_flow = ControlFlow::Exit;
                 }
             }
         })
@@ -137,14 +139,16 @@ pub fn glutin_polling_event_loop_poll(
 }
 
 #[no_mangle]
-pub fn glutin_polling_event_loop_run_return(_ptr_event_loop: *mut ValueBox<PollingEventLoop>) {
+pub fn glutin_polling_event_loop_run_return(_ptr_event_loop: *mut ValueBox<PollingEventLoop>, glutin_event_loop_ptr: *mut ValueBox<GlutinEventLoop>) {
     if _ptr_event_loop.is_null() {
         eprintln!("[glutin_polling_event_loop_run_return] _ptr_event_loop is null");
         return;
     }
 
-    _ptr_event_loop.with_not_null(|event_loop| {
-        event_loop.run_return();
+    _ptr_event_loop.with_not_null(|polling_event_loop| {
+        glutin_event_loop_ptr.with_not_null(|glutin_event_loop|{
+            polling_event_loop.run_return(glutin_event_loop);
+        });
     });
 }
 
