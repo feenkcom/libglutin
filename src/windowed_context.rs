@@ -326,6 +326,16 @@ pub fn glutin_windowed_context_set_cursor_icon(
 }
 
 #[no_mangle]
+pub fn glutin_windowed_context_set_maximized(
+    _ptr_window: *mut ValueBox<GlutinWindowedContext>,
+    maximized: bool
+) {
+    _ptr_window.with_not_null(|window| {
+        window.window().set_maximized(maximized);
+    });
+}
+
+#[no_mangle]
 pub fn glutin_destroy_windowed_context(_ptr: &mut *mut ValueBox<GlutinWindowedContext>) {
     _ptr.drop();
 }

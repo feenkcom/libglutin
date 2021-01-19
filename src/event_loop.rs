@@ -4,24 +4,95 @@ use glutin::event_loop::EventLoopClosed;
 use glutin::event_loop::{ControlFlow, EventLoop, EventLoopProxy, EventLoopWindowTarget};
 use glutin::monitor::MonitorHandle;
 use glutin::platform::desktop::EventLoopExtDesktop;
+use glutin::window::WindowBuilder;
+use glutin::ContextBuilder;
+use std::collections::VecDeque;
 use std::ffi::c_void;
+use std::intrinsics::transmute;
 use std::sync::{Arc, Mutex};
 use std::time;
-use std::collections::VecDeque;
 
 pub type GlutinCustomEvent = u32;
 pub type GlutinEventLoop = EventLoop<GlutinCustomEvent>;
 pub type GlutinEventLoopProxy = EventLoopProxy<GlutinCustomEvent>;
 
+pub struct SemaphoreSignaller {
+    semaphore_callback: unsafe extern "C" fn(usize, *const c_void),
+    semaphore_index: usize,
+    semaphore_thunk: *const c_void,
+}
+
+impl SemaphoreSignaller {
+    pub fn new(
+        semaphore_callback: unsafe extern "C" fn(usize, *const c_void),
+        semaphore_index: usize,
+        semaphore_thunk: *const c_void,
+    ) -> Self {
+        Self {
+            semaphore_callback,
+            semaphore_index,
+            semaphore_thunk,
+        }
+    }
+
+    pub fn signal(&self) {
+        let callback = self.semaphore_callback;
+        unsafe { callback(self.semaphore_index, self.semaphore_thunk) };
+    }
+}
+
+pub struct MainEventClearedSignaller {
+    callback: unsafe extern "C" fn(*const c_void),
+    thunk: *const c_void,
+}
+
+impl MainEventClearedSignaller {
+    pub fn new(callback: unsafe extern "C" fn(*const c_void), thunk: *const c_void) -> Self {
+        Self { callback, thunk }
+    }
+
+    pub fn signal(&self) {
+        let callback = self.callback;
+        unsafe { callback(self.thunk) };
+    }
+}
+
 pub struct PollingEventLoop {
     events: Mutex<VecDeque<GlutinEvent>>,
+    semaphore_signaller: Option<SemaphoreSignaller>,
+    main_events_cleared_signaller: Option<MainEventClearedSignaller>,
 }
 
 impl PollingEventLoop {
     pub fn new() -> Self {
         Self {
             events: Mutex::new(VecDeque::new()),
+            semaphore_signaller: None,
+            main_events_cleared_signaller: None,
         }
+    }
+
+    pub fn with_semaphore_signaller(
+        mut self,
+        semaphore_callback: extern "C" fn(usize, *const c_void),
+        semaphore_index: usize,
+        semaphore_thunk: *const c_void,
+    ) -> Self {
+        self.semaphore_signaller = Some(SemaphoreSignaller::new(
+            semaphore_callback,
+            semaphore_index,
+            semaphore_thunk,
+        ));
+        self
+    }
+
+    pub fn with_main_events_signaller(
+        mut self,
+        callback: extern "C" fn(*const c_void),
+        thunk: *const c_void,
+    ) -> Self {
+        self.main_events_cleared_signaller = Some(MainEventClearedSignaller::new(callback, thunk));
+        self
     }
 
     pub fn poll(&mut self) -> Option<GlutinEvent> {
@@ -53,13 +124,31 @@ impl PollingEventLoop {
         }
     }
 
-    pub fn run_return(&mut self, event_loop: &mut GlutinEventLoop) {
-        let events = &mut self.events;
+    pub fn signal_semaphore(&self) {
+        if self.semaphore_signaller.is_some() {
+            self.semaphore_signaller.as_ref().unwrap().signal();
+        }
+    }
 
+    pub fn signal_main_events_cleared(&self) {
+        if self.main_events_cleared_signaller.is_some() {
+            self.main_events_cleared_signaller
+                .as_ref()
+                .unwrap()
+                .signal();
+        }
+    }
+
+    pub fn run(&'static mut self) {
         let mut event_processor = EventProcessor::new();
+        let event_loop = GlutinEventLoop::with_user_event();
 
-        event_loop.run_return(move |event, _, control_flow: &mut ControlFlow| {
-            *control_flow = ControlFlow::Poll;
+        let window = ContextBuilder::new().build_windowed(WindowBuilder::default(), &event_loop);
+
+        println!("new window: {:?}", window);
+
+        event_loop.run(move |event, _, control_flow: &mut ControlFlow| {
+            *control_flow = ControlFlow::Wait;
 
             let mut c_event = GlutinEvent::default();
             let processed = event_processor.process(event, &mut c_event);
@@ -69,10 +158,12 @@ impl PollingEventLoop {
                     && event_type != GlutinEventType::RedrawEventsCleared
                     && event_type != GlutinEventType::NewEvents
                 {
-                    Self::push_event(events, c_event);
+                    self.push(c_event);
+                    self.signal_semaphore();
                 }
-                if event_type == GlutinEventType::RedrawEventsCleared {
-                    *control_flow = ControlFlow::Exit;
+
+                if event_type == GlutinEventType::MainEventsCleared {
+                    self.signal_main_events_cleared();
                 }
             }
         })
@@ -129,6 +220,22 @@ pub fn glutin_polling_event_loop_new() -> *mut ValueBox<PollingEventLoop> {
 }
 
 #[no_mangle]
+pub fn glutin_polling_event_loop_new_with_semaphore_and_main_events_signaller(
+    semaphore_callback: extern "C" fn(usize, *const c_void),
+    semaphore_index: usize,
+    semaphore_thunk: *const c_void,
+    main_events_callback: extern "C" fn(*const c_void),
+    main_events_thunk: *const c_void,
+) -> *mut ValueBox<PollingEventLoop> {
+    ValueBox::new(
+        PollingEventLoop::new()
+            .with_semaphore_signaller(semaphore_callback, semaphore_index, semaphore_thunk)
+            .with_main_events_signaller(main_events_callback, main_events_thunk),
+    )
+    .into_raw()
+}
+
+#[no_mangle]
 pub fn glutin_polling_event_loop_poll(
     _ptr: *mut ValueBox<PollingEventLoop>,
 ) -> *mut ValueBox<GlutinEvent> {
@@ -139,22 +246,16 @@ pub fn glutin_polling_event_loop_poll(
 }
 
 #[no_mangle]
-pub fn glutin_polling_event_loop_run_return(_ptr_event_loop: *mut ValueBox<PollingEventLoop>, glutin_event_loop_ptr: *mut ValueBox<GlutinEventLoop>) {
+pub fn glutin_polling_event_loop_run(_ptr_event_loop: *mut ValueBox<PollingEventLoop>) {
     if _ptr_event_loop.is_null() {
         eprintln!("[glutin_polling_event_loop_run_return] _ptr_event_loop is null");
         return;
     }
 
     _ptr_event_loop.with_not_null(|polling_event_loop| {
-        glutin_event_loop_ptr.with_not_null(|glutin_event_loop|{
-            polling_event_loop.run_return(glutin_event_loop);
-        });
+        let event_loop: &'static mut PollingEventLoop = unsafe { transmute(polling_event_loop) };
+        event_loop.run();
     });
-}
-
-#[no_mangle]
-pub fn glutin_main_test(a: u32, b: u32) -> u32 {
-    a + b
 }
 
 #[no_mangle]
@@ -164,6 +265,10 @@ pub fn glutin_polling_event_loop_drop(_ptr: &mut *mut ValueBox<PollingEventLoop>
 
 #[no_mangle]
 pub fn glutin_create_events_loop() -> *mut ValueBox<GlutinEventLoop> {
+    #[cfg(target_os = "linux")]
+    {
+        std::env::set_var("WINIT_UNIX_BACKEND", "x11");
+    }
     ValueBox::new(GlutinEventLoop::with_user_event()).into_raw()
 }
 
