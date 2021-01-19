@@ -267,7 +267,10 @@ pub fn glutin_polling_event_loop_drop(_ptr: &mut *mut ValueBox<PollingEventLoop>
 pub fn glutin_create_events_loop() -> *mut ValueBox<GlutinEventLoop> {
     #[cfg(target_os = "linux")]
     {
-        std::env::set_var("WINIT_UNIX_BACKEND", "x11");
+        // respect the winit backend if it is set
+        if (std::env::var("WINIT_UNIX_BACKEND").is_err()) {
+            std::env::set_var("WINIT_UNIX_BACKEND", "x11");
+        }
     }
     ValueBox::new(GlutinEventLoop::with_user_event()).into_raw()
 }
