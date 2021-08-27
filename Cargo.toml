@@ -4,14 +4,14 @@ version = "0.2.0"
 authors = ["Aliaksei Syrel <alex.syrel@gmail.com>"]
 
 [dependencies]
-glutin = { git = "https://github.com/syrel/glutin", rev ="7d0df6ec3563173456fcc214e1a5f399fdfd7225" }
-libc = "0.2.80"
+glutin = { git = "https://github.com/syrel/glutin", rev ="66ee6a9192adcfce5f5155329dad8656de1ed96f" }
+libc = "0.2.101"
 boxer = { git = "https://github.com/feenkcom/gtoolkit-boxer", rev = "8ffd345b6aabda55c5ab1b4914f6f3e5f92918d4" }
 log = "0.4"
 env_logger = "0.7"
 
 [patch.crates-io]
-winit = { git = "https://github.com/syrel/winit", rev = "0ecbd8ff32577441d266b9c141e610b3c8c3ec36" }
+winit = { git = "https://github.com/syrel/winit", rev = "f82d6f5c7f090866a6d96d2937beef8ddc518728" }
 
 [lib]
 name = "Glutin"

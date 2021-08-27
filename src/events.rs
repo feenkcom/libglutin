@@ -152,7 +152,7 @@ pub struct GlutinEventModifiersState {
 #[repr(C)]
 pub struct GlutinEventMouseButton {
     button_type: GlutinEventMouseButtonType,
-    button_code: u8,
+    button_code: u16,
 }
 
 #[derive(Debug, Copy, Clone, Default)]

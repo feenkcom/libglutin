@@ -3,7 +3,7 @@ use events::{EventProcessor, GlutinControlFlow, GlutinEvent, GlutinEventType};
 use glutin::event_loop::EventLoopClosed;
 use glutin::event_loop::{ControlFlow, EventLoop, EventLoopProxy, EventLoopWindowTarget};
 use glutin::monitor::MonitorHandle;
-use glutin::platform::desktop::EventLoopExtDesktop;
+use glutin::platform::run_return::EventLoopExtRunReturn;
 use glutin::window::WindowBuilder;
 use glutin::ContextBuilder;
 use std::collections::VecDeque;
