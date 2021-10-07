@@ -11,7 +11,7 @@ log = "0.4"
 env_logger = "0.7"
 
 [patch.crates-io]
-winit = { git = "https://github.com/syrel/winit", rev = "f82d6f5c7f090866a6d96d2937beef8ddc518728" }
+winit = { git = "https://github.com/syrel/winit", rev = "f70e97501743615e12307ec802a43721c8a81fb4" }
 
 [lib]
 name = "Glutin"

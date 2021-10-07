@@ -5,7 +5,7 @@ import hudson.tasks.junit.CaseResult
 pipeline {
     agent none
     parameters {
-        choice(name: 'BUMP', choices: ['patch', 'minor', 'major'], description: 'What to bump when releasing') }
+        choice(name: 'BUMP', choices: ['minor', 'patch', 'major'], description: 'What to bump when releasing') }
     options {
         buildDiscarder(logRotator(numToKeepStr: '50'))
         disableConcurrentBuilds()
