@@ -1190,7 +1190,7 @@ checksum = "712e227841d057c1ee1cd2fb22fa7e5a5461ae8e48fa2ca79ec42cfc1931183f"
 [[package]]
 name = "winit"
 version = "0.25.0"
-source = "git+https://github.com/syrel/winit?rev=f70e97501743615e12307ec802a43721c8a81fb4#f70e97501743615e12307ec802a43721c8a81fb4"
+source = "git+https://github.com/syrel/winit?rev=1bfb23b06643a212e4340af7a9a5d55027059b38#1bfb23b06643a212e4340af7a9a5d55027059b38"
 dependencies = [
  "bitflags",
  "block",
