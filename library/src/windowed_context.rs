@@ -109,20 +109,26 @@ pub fn glutin_create_windowed_context(
     }
 
     _ptr_events_loop.with_not_null_return(std::ptr::null_mut(), |event_loop| {
-        _ptr_context_builder.with_not_null_value_consumed_return(std::ptr::null_mut(),|context_builder| {
-            _ptr_window_builder.with_not_null_value_consumed_return(std::ptr::null_mut(),|window_builder| {
-                debug!("Windowed context builder: {:?}", &context_builder);
-                debug!("Window builder: {:?}", &window_builder);
+        _ptr_context_builder.with_not_null_value_consumed_return(
+            std::ptr::null_mut(),
+            |context_builder| {
+                _ptr_window_builder.with_not_null_value_consumed_return(
+                    std::ptr::null_mut(),
+                    |window_builder| {
+                        debug!("Windowed context builder: {:?}", &context_builder);
+                        debug!("Window builder: {:?}", &window_builder);
 
-                match context_builder.build_windowed(window_builder, event_loop) {
-                    Ok(windowed_context) => ValueBox::new(windowed_context).into_raw(),
-                    Err(err) => {
-                        error!("Could not create windowed context {:?}", err);
-                        std::ptr::null_mut()
-                    }
-                }
-            })
-        })
+                        match context_builder.build_windowed(window_builder, event_loop) {
+                            Ok(windowed_context) => ValueBox::new(windowed_context).into_raw(),
+                            Err(err) => {
+                                error!("Could not create windowed context {:?}", err);
+                                std::ptr::null_mut()
+                            }
+                        }
+                    },
+                )
+            },
+        )
     })
 }
 
@@ -328,7 +334,7 @@ pub fn glutin_windowed_context_set_cursor_icon(
 #[no_mangle]
 pub fn glutin_windowed_context_set_maximized(
     _ptr_window: *mut ValueBox<GlutinWindowedContext>,
-    maximized: bool
+    maximized: bool,
 ) {
     _ptr_window.with_not_null(|window| {
         window.window().set_maximized(maximized);

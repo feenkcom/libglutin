@@ -216,7 +216,7 @@ pub fn glutin_try_headless_context(
 
 #[no_mangle]
 pub fn glutin_context_make_current(mut _ptr: *mut ValueBox<GlutinHeadlessContext>) {
-    _ptr.with_not_null_value_mutate(|context| context.make_current() );
+    _ptr.with_not_null_value_mutate(|context| context.make_current());
 }
 
 #[no_mangle]
