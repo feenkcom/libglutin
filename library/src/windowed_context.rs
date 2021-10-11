@@ -121,7 +121,7 @@ pub fn glutin_create_windowed_context(
                         match context_builder.build_windowed(window_builder, event_loop) {
                             Ok(windowed_context) => ValueBox::new(windowed_context).into_raw(),
                             Err(err) => {
-                                error!("Could not create windowed context {:?}", err);
+                                warn!("Could not create windowed context {:?}", err);
                                 std::ptr::null_mut()
                             }
                         }

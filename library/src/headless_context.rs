@@ -188,7 +188,7 @@ pub fn glutin_create_headless_context(
                         ValueBox::new(GlutinHeadlessContext::NotCurrent(context)).into_raw()
                     }
                     Err(err) => {
-                        error!(
+                        warn!(
                             "Could not create headless context with {} due to {:?}",
                             context_builder_info, err
                         );
