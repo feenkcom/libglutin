@@ -4,7 +4,7 @@ version = "0.2.0"
 authors = ["feenk gmbh. <contact@feenk.com>"]
 
 [dependencies]
-glutin = { git = "https://github.com/syrel/glutin", rev ="66ee6a9192adcfce5f5155329dad8656de1ed96f" }
+glutin = { git = "https://github.com/syrel/glutin", rev ="6211629aad46c632697fe1c6b87c02f2bda4efb7" }
 libc = "0.2.101"
 boxer = { git = "https://github.com/feenkcom/gtoolkit-boxer", rev = "8ffd345b6aabda55c5ab1b4914f6f3e5f92918d4" }
 log = "0.4"
