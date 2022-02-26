@@ -498,7 +498,7 @@ dependencies = [
 [[package]]
 name = "glutin"
 version = "0.27.0"
-source = "git+https://github.com/syrel/glutin?rev=66ee6a9192adcfce5f5155329dad8656de1ed96f#66ee6a9192adcfce5f5155329dad8656de1ed96f"
+source = "git+https://github.com/syrel/glutin?rev=6211629aad46c632697fe1c6b87c02f2bda4efb7#6211629aad46c632697fe1c6b87c02f2bda4efb7"
 dependencies = [
  "android_glue",
  "cgl",
@@ -524,7 +524,7 @@ dependencies = [
 [[package]]
 name = "glutin_egl_sys"
 version = "0.1.5"
-source = "git+https://github.com/syrel/glutin?rev=66ee6a9192adcfce5f5155329dad8656de1ed96f#66ee6a9192adcfce5f5155329dad8656de1ed96f"
+source = "git+https://github.com/syrel/glutin?rev=6211629aad46c632697fe1c6b87c02f2bda4efb7#6211629aad46c632697fe1c6b87c02f2bda4efb7"
 dependencies = [
  "gl_generator",
  "winapi",
@@ -533,12 +533,12 @@ dependencies = [
 [[package]]
 name = "glutin_emscripten_sys"
 version = "0.1.1"
-source = "git+https://github.com/syrel/glutin?rev=66ee6a9192adcfce5f5155329dad8656de1ed96f#66ee6a9192adcfce5f5155329dad8656de1ed96f"
+source = "git+https://github.com/syrel/glutin?rev=6211629aad46c632697fe1c6b87c02f2bda4efb7#6211629aad46c632697fe1c6b87c02f2bda4efb7"
 
 [[package]]
 name = "glutin_gles2_sys"
 version = "0.1.5"
-source = "git+https://github.com/syrel/glutin?rev=66ee6a9192adcfce5f5155329dad8656de1ed96f#66ee6a9192adcfce5f5155329dad8656de1ed96f"
+source = "git+https://github.com/syrel/glutin?rev=6211629aad46c632697fe1c6b87c02f2bda4efb7#6211629aad46c632697fe1c6b87c02f2bda4efb7"
 dependencies = [
  "gl_generator",
  "objc",
@@ -547,7 +547,7 @@ dependencies = [
 [[package]]
 name = "glutin_glx_sys"
 version = "0.1.7"
-source = "git+https://github.com/syrel/glutin?rev=66ee6a9192adcfce5f5155329dad8656de1ed96f#66ee6a9192adcfce5f5155329dad8656de1ed96f"
+source = "git+https://github.com/syrel/glutin?rev=6211629aad46c632697fe1c6b87c02f2bda4efb7#6211629aad46c632697fe1c6b87c02f2bda4efb7"
 dependencies = [
  "gl_generator",
  "x11-dl",
@@ -556,7 +556,7 @@ dependencies = [
 [[package]]
 name = "glutin_wgl_sys"
 version = "0.1.5"
-source = "git+https://github.com/syrel/glutin?rev=66ee6a9192adcfce5f5155329dad8656de1ed96f#66ee6a9192adcfce5f5155329dad8656de1ed96f"
+source = "git+https://github.com/syrel/glutin?rev=6211629aad46c632697fe1c6b87c02f2bda4efb7#6211629aad46c632697fe1c6b87c02f2bda4efb7"
 dependencies = [
  "gl_generator",
 ]

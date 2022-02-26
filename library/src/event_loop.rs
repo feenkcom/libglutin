@@ -5,12 +5,13 @@ use glutin::event_loop::{ControlFlow, EventLoop, EventLoopProxy, EventLoopWindow
 use glutin::monitor::MonitorHandle;
 use glutin::platform::run_return::EventLoopExtRunReturn;
 use glutin::window::WindowBuilder;
-use glutin::ContextBuilder;
 use std::collections::VecDeque;
 use std::ffi::c_void;
 use std::intrinsics::transmute;
 use std::sync::{Arc, Mutex};
 use std::time;
+use context_builder::GlutinContextBuilder;
+use windowed_context::GlutinWindowedContext;
 
 pub type GlutinCustomEvent = u32;
 pub type GlutinEventLoop = EventLoop<GlutinCustomEvent>;
@@ -61,6 +62,7 @@ pub struct PollingEventLoop {
     events: Mutex<VecDeque<GlutinEvent>>,
     semaphore_signaller: Option<SemaphoreSignaller>,
     main_events_cleared_signaller: Option<MainEventClearedSignaller>,
+    event_loop: *const EventLoopWindowTarget<GlutinCustomEvent>
 }
 
 impl PollingEventLoop {
@@ -69,6 +71,7 @@ impl PollingEventLoop {
             events: Mutex::new(VecDeque::new()),
             semaphore_signaller: None,
             main_events_cleared_signaller: None,
+            event_loop: std::ptr::null()
         }
     }
 
@@ -125,17 +128,14 @@ impl PollingEventLoop {
     }
 
     pub fn signal_semaphore(&self) {
-        if self.semaphore_signaller.is_some() {
-            self.semaphore_signaller.as_ref().unwrap().signal();
+        if let Some(signaller) = self.semaphore_signaller.as_ref() {
+            signaller.signal()
         }
     }
 
     pub fn signal_main_events_cleared(&self) {
-        if self.main_events_cleared_signaller.is_some() {
-            self.main_events_cleared_signaller
-                .as_ref()
-                .unwrap()
-                .signal();
+        if let Some(signaller) = self.main_events_cleared_signaller.as_ref() {
+            signaller.signal()
         }
     }
 
@@ -143,11 +143,8 @@ impl PollingEventLoop {
         let mut event_processor = EventProcessor::new();
         let event_loop = GlutinEventLoop::with_user_event();
 
-        let window = ContextBuilder::new().build_windowed(WindowBuilder::default(), &event_loop);
-
-        println!("new window: {:?}", window);
-
-        event_loop.run(move |event, _, control_flow: &mut ControlFlow| {
+        event_loop.run(move |event, event_loop, control_flow: &mut ControlFlow| {
+            self.event_loop = event_loop as *const EventLoopWindowTarget<GlutinCustomEvent>;
             *control_flow = ControlFlow::Wait;
 
             let mut c_event = GlutinEvent::default();
@@ -166,6 +163,7 @@ impl PollingEventLoop {
                     self.signal_main_events_cleared();
                 }
             }
+            self.event_loop = std::ptr::null_mut();
         })
     }
 }
@@ -217,6 +215,57 @@ pub fn glutin_event_loop_waker_drop(_ptr: &mut *mut ValueBox<GlutinEventLoopWake
 #[no_mangle]
 pub fn glutin_polling_event_loop_new() -> *mut ValueBox<PollingEventLoop> {
     ValueBox::new(PollingEventLoop::new()).into_raw()
+}
+
+#[no_mangle]
+pub fn glutin_polling_event_loop_create_windowed_context(
+    _ptr_events_loop: *mut ValueBox<PollingEventLoop>,
+    mut _ptr_window_builder: *mut ValueBox<WindowBuilder>,
+    mut _ptr_context_builder: *mut ValueBox<GlutinContextBuilder>,
+) -> *mut ValueBox<GlutinWindowedContext> {
+    if _ptr_events_loop.is_null() {
+        error!("Polling event loop is null");
+        return std::ptr::null_mut();
+    }
+
+    if _ptr_window_builder.is_null() {
+        error!("Window builder is null");
+        return std::ptr::null_mut();
+    }
+
+    if _ptr_context_builder.is_null() {
+        error!("Context builder is null");
+        return std::ptr::null_mut();
+    }
+
+    _ptr_events_loop.with_not_null_return(std::ptr::null_mut(), |event_loop| {
+        if event_loop.event_loop.is_null() {
+            error!("Event loop is null");
+            return std::ptr::null_mut();
+        }
+        _ptr_context_builder.with_not_null_value_consumed_return(
+            std::ptr::null_mut(),
+            |context_builder| {
+                _ptr_window_builder.with_not_null_value_consumed_return(
+                    std::ptr::null_mut(),
+                    |window_builder| {
+                        debug!("Windowed context builder: {:?}", &context_builder);
+                        debug!("Window builder: {:?}", &window_builder);
+
+                        let event_loop = unsafe { &*event_loop.event_loop };
+
+                        match context_builder.build_windowed(window_builder, event_loop) {
+                            Ok(windowed_context) => ValueBox::new(windowed_context).into_raw(),
+                            Err(err) => {
+                                warn!("Could not create windowed context {:?}", err);
+                                std::ptr::null_mut()
+                            }
+                        }
+                    },
+                )
+            },
+        )
+    })
 }
 
 #[no_mangle]

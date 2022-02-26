@@ -1,6 +1,6 @@
 use boxer::{ValueBox, ValueBoxPointer, ValueBoxPointerReference};
 
-use glutin::event_loop::EventLoop;
+use glutin::event_loop::EventLoopWindowTarget;
 use glutin::window::WindowBuilder;
 use glutin::{
     ContextBuilder, CreationError, GlProfile, GlRequest, NotCurrent, PixelFormatRequirements,
@@ -19,7 +19,7 @@ impl<'a> GlutinContextBuilder<'a> {
     pub fn build_windowed<TE>(
         self,
         wb: WindowBuilder,
-        el: &EventLoop<TE>,
+        el: &EventLoopWindowTarget<TE>,
     ) -> Result<GlutinWindowedContext, CreationError> {
         (match self {
             GlutinContextBuilder::NotCurrent(builder) => builder.build_windowed(wb, el),
