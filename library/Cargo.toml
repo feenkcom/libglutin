@@ -10,6 +10,9 @@ boxer = { git = "https://github.com/feenkcom/gtoolkit-boxer", rev = "8ffd345b6aa
 log = "0.4"
 env_logger = "0.7"
 
+[patch.crates-io]
+winit = { git = "https://github.com/syrel/winit" }
+
 [lib]
 name = "Glutin"
 crate-type = ["cdylib"]
