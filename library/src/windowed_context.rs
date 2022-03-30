@@ -11,6 +11,7 @@ use glutin::window::Window;
 use glutin::window::WindowBuilder;
 use glutin::{Api, ContextError, NotCurrent, PixelFormat, PossiblyCurrent, WindowedContext};
 use pixel_format::glutin_pixel_format_default;
+use raw_window_handle::{HasRawWindowHandle, RawWindowHandle};
 use std::os::raw::c_void;
 use {glutin_convert_window_id, ContextApi};
 
@@ -45,6 +46,13 @@ impl GlutinWindowedContext {
                 std::ptr::null()
             }
             GlutinWindowedContext::PossiblyCurrent(context) => context.get_proc_address(addr),
+        }
+    }
+
+    pub fn raw_window_handle(&self) -> RawWindowHandle {
+        match self {
+            GlutinWindowedContext::NotCurrent(context) => context.window().raw_window_handle(),
+            GlutinWindowedContext::PossiblyCurrent(context) => context.window().raw_window_handle(),
         }
     }
 
@@ -194,6 +202,15 @@ pub fn glutin_windowed_context_get_api(
     _ptr_context: *mut ValueBox<GlutinWindowedContext>,
 ) -> ContextApi {
     _ptr_context.with_not_null_return(ContextApi::Unknown, |context| context.get_api().into())
+}
+
+#[no_mangle]
+pub fn glutin_windowed_context_raw_window_handle(
+    _ptr_context: *mut ValueBox<GlutinWindowedContext>,
+) -> *mut ValueBox<RawWindowHandle> {
+    _ptr_context.with_not_null_return(std::ptr::null_mut(), |context| {
+        ValueBox::new(context.raw_window_handle()).into_raw()
+    })
 }
 
 #[no_mangle]
