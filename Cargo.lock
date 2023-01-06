@@ -1585,10 +1585,11 @@ checksum = "5e18f67ceea13aa06bf1aff5496d395b2d5b3caa118a51b4122e78c04bc571b2"
 
 [[package]]
 name = "tokio"
-version = "1.17.0"
+version = "1.20.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2af73ac49756f3f7c01172e34a23e5d0216f6c32333757c2c61feb2bbff5a5ee"
+checksum = "664cf6576f16c0ad68184998f3c2d4be9903ede6b291a5b5cfc97d29e0057283"
 dependencies = [
+ "autocfg",
  "bytes",
  "libc",
  "memchr",
