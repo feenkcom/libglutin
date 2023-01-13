@@ -2,10 +2,10 @@ use boxer::number::BoxerUint128;
 
 use glutin::dpi::{PhysicalPosition, PhysicalSize};
 use glutin::event::*;
-use glutin_convert_window_id;
 
+use crate::event_loop::GlutinCustomEvent;
+use crate::glutin_convert_window_id;
 use boxer::{ValueBox, ValueBoxPointerReference};
-use event_loop::GlutinCustomEvent;
 use std::collections::HashMap;
 use std::mem::transmute;
 

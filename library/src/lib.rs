@@ -1,12 +1,7 @@
 #![allow(non_snake_case)]
 
-extern crate boxer;
-extern crate glutin;
-extern crate libc;
 #[macro_use]
 extern crate log;
-extern crate env_logger;
-extern crate raw_window_handle;
 
 pub mod context_builder;
 pub mod enums;

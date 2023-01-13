@@ -1,13 +1,13 @@
 use boxer::{ValueBox, ValueBoxPointer, ValueBoxPointerReference};
 
+use crate::headless_context::GlutinHeadlessContext;
+use crate::windowed_context::GlutinWindowedContext;
 use glutin::event_loop::EventLoopWindowTarget;
 use glutin::window::WindowBuilder;
 use glutin::{
     ContextBuilder, CreationError, GlProfile, GlRequest, NotCurrent, PixelFormatRequirements,
     PossiblyCurrent, WindowedContext,
 };
-use headless_context::GlutinHeadlessContext;
-use windowed_context::GlutinWindowedContext;
 
 #[derive(Debug)]
 pub enum GlutinContextBuilder<'a> {
@@ -108,24 +108,6 @@ pub fn glutin_context_builder_with_shared_headless_context(
             )
         },
     );
-    //
-    //
-    //
-    //
-    //    let mut context_builder_box = ManuallyDrop::new(unsafe { from_raw(_ptr_context_builder) });
-    //    let context_builder = *unsafe { from_raw(context_builder_box.boxed()) };
-    //
-    //    let another_context_value_box = ManuallyDrop::new(unsafe { from_raw(_ptr_another_context) });
-    //    let another_context = ManuallyDrop::new(unsafe { from_raw(another_context_value_box.boxed()) });
-    //
-    //    let new_builder = context_builder.with_shared_lists_headless(another_context.as_ref());
-    //
-    //    let new_builder_ptr = Box::into_raw(Box::new(new_builder));
-    //    // transmute clears lifetime :)
-    //    let new_builder_ptr: *mut GlutinContextBuilder =
-    //        unsafe { std::mem::transmute(new_builder_ptr) };
-    //
-    //    unsafe { context_builder_box.mutate_ptr(new_builder_ptr) };
 }
 
 #[no_mangle]

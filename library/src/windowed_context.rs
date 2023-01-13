@@ -1,19 +1,19 @@
+use crate::context_builder::GlutinContextBuilder;
+use crate::enums::GlutinCursorIcon;
+use crate::event_loop::GlutinEventLoop;
+use crate::pixel_format::glutin_pixel_format_default;
+use crate::{glutin_convert_window_id, ContextApi};
 use boxer::number::BoxerUint128;
 use boxer::point::BoxerPointI32;
 use boxer::size::BoxerSizeU32;
 use boxer::string::BoxerString;
 use boxer::{ValueBox, ValueBoxPointer, ValueBoxPointerReference};
-use context_builder::GlutinContextBuilder;
-use enums::GlutinCursorIcon;
-use event_loop::GlutinEventLoop;
 use glutin::dpi::{PhysicalPosition, PhysicalSize};
 use glutin::window::Window;
 use glutin::window::WindowBuilder;
 use glutin::{Api, ContextError, NotCurrent, PixelFormat, PossiblyCurrent, WindowedContext};
-use pixel_format::glutin_pixel_format_default;
 use raw_window_handle::{HasRawWindowHandle, RawWindowHandle};
 use std::os::raw::c_void;
-use {glutin_convert_window_id, ContextApi};
 
 #[derive(Debug)]
 pub enum GlutinWindowedContext {

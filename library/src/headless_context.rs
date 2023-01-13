@@ -1,14 +1,15 @@
 use boxer::string::BoxerString;
 use boxer::{ValueBox, ValueBoxPointer, ValueBoxPointerReference};
-use context_builder::GlutinContextBuilder;
-use event_loop::GlutinEventLoop;
+
+use crate::context_builder::GlutinContextBuilder;
+use crate::event_loop::GlutinEventLoop;
+use crate::ContextApi;
 use glutin::dpi::PhysicalSize;
 use glutin::{
     Api, Context, ContextBuilder, ContextCurrentState, ContextError, CreationError, NotCurrent,
     PossiblyCurrent,
 };
 use std::ffi::c_void;
-use ContextApi;
 
 #[derive(Debug)]
 pub enum GlutinHeadlessContext {
