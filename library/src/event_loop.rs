@@ -1,9 +1,9 @@
 use crate::events::{EventProcessor, GlutinControlFlow, GlutinEvent};
-use boxer::{ValueBox, ValueBoxPointer, ValueBoxPointerReference};
 use glutin::event_loop::{ControlFlow, EventLoop, EventLoopProxy, EventLoopWindowTarget};
 use glutin::monitor::MonitorHandle;
 use glutin::platform::run_return::EventLoopExtRunReturn;
 use std::time;
+use value_box::{ValueBox, ValueBoxPointer};
 
 pub type GlutinCustomEvent = u32;
 pub type GlutinEventLoop = EventLoop<GlutinCustomEvent>;
@@ -22,8 +22,8 @@ pub fn glutin_create_events_loop() -> *mut ValueBox<GlutinEventLoop> {
 }
 
 #[no_mangle]
-pub fn glutin_destroy_events_loop(_ptr: &mut *mut ValueBox<GlutinEventLoop>) {
-    _ptr.drop();
+pub fn glutin_destroy_events_loop(_ptr: *mut ValueBox<GlutinEventLoop>) {
+    _ptr.release();
 }
 
 #[no_mangle]
@@ -121,8 +121,8 @@ fn glutin_events_loop_create_proxy(
 }
 
 #[no_mangle]
-fn glutin_events_loop_drop_proxy(_ptr: &mut *mut ValueBox<GlutinEventLoopProxy>) {
-    _ptr.drop();
+fn glutin_events_loop_drop_proxy(_ptr: *mut ValueBox<GlutinEventLoopProxy>) {
+    _ptr.release();
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////
@@ -142,8 +142,8 @@ fn glutin_events_loop_get_primary_monitor(
 }
 
 #[no_mangle]
-fn glutin_primary_monitor_free(_ptr_monitor_id: &mut *mut ValueBox<MonitorHandle>) {
-    _ptr_monitor_id.drop();
+fn glutin_primary_monitor_free(_ptr_monitor_id: *mut ValueBox<MonitorHandle>) {
+    _ptr_monitor_id.release();
 }
 
 #[no_mangle]

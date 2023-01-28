@@ -1,18 +1,18 @@
-use boxer::number::BoxerUint128;
+use std::collections::HashMap;
+use std::mem::transmute;
 
+use geometry_box::U128Box;
 use glutin::dpi::{PhysicalPosition, PhysicalSize};
 use glutin::event::*;
+use value_box::{ValueBox, ValueBoxPointer};
 
 use crate::event_loop::GlutinCustomEvent;
 use crate::glutin_convert_window_id;
-use boxer::{ValueBox, ValueBoxPointerReference};
-use std::collections::HashMap;
-use std::mem::transmute;
 
 #[derive(Debug, Default)]
 #[repr(C)]
 pub struct GlutinEvent {
-    pub window_id: BoxerUint128,
+    pub window_id: U128Box,
     pub event_type: GlutinEventType,
     pub touch: GlutinTouchEvent,
     pub mouse_wheel: GlutinMouseWheelEvent,
@@ -304,7 +304,7 @@ impl EventProcessor {
 
         match global_event {
             glutin::event::Event::WindowEvent { event, window_id } => {
-                let id: BoxerUint128 = glutin_convert_window_id(window_id);
+                let id: U128Box = glutin_convert_window_id(window_id);
                 c_event.window_id.clone_from(&id);
 
                 match event {
@@ -392,7 +392,7 @@ impl EventProcessor {
                         c_event.modifiers.logo = modifiers.logo();
                         c_event.modifiers.shift = modifiers.shift();
                     }
-                    _ => ({ result = false }),
+                    _ => result = false,
                 }
             }
 
@@ -410,7 +410,7 @@ impl EventProcessor {
             }
             glutin::event::Event::RedrawRequested(window_id) => {
                 c_event.event_type = GlutinEventType::RedrawRequested;
-                let id: BoxerUint128 = glutin_convert_window_id(window_id);
+                let id: U128Box = glutin_convert_window_id(window_id);
                 c_event.window_id.clone_from(&id);
             }
             glutin::event::Event::Suspended => {
@@ -632,6 +632,9 @@ fn glutin_event_loop_process_received_character(c_event: &mut GlutinEvent, chara
 }
 
 #[no_mangle]
-pub fn glutin_event_drop(_ptr: &mut *mut ValueBox<GlutinEvent>) {
-    _ptr.drop();
+pub extern "C" fn glutin_event_drop(ptr: *mut GlutinEvent) {
+    if ptr.is_null() {
+        return;
+    }
+    unsafe { Box::from_raw(ptr) };
 }

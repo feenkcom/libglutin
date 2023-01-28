@@ -1,21 +1,22 @@
-use boxer::{ValueBox, ValueBoxPointer, ValueBoxPointerReference};
-
-use crate::headless_context::GlutinHeadlessContext;
-use crate::windowed_context::GlutinWindowedContext;
 use glutin::event_loop::EventLoopWindowTarget;
 use glutin::window::WindowBuilder;
 use glutin::{
     ContextBuilder, CreationError, GlProfile, GlRequest, NotCurrent, PixelFormatRequirements,
-    PossiblyCurrent, WindowedContext,
+    PossiblyCurrent,
 };
+use std::mem::transmute;
+use value_box::{ReturnBoxerResult, ValueBox, ValueBoxPointer};
+
+use crate::headless_context::GlutinHeadlessContext;
+use crate::windowed_context::GlutinWindowedContext;
 
 #[derive(Debug)]
-pub enum GlutinContextBuilder<'a> {
-    NotCurrent(ContextBuilder<'a, NotCurrent>),
-    PossiblyCurrent(ContextBuilder<'a, PossiblyCurrent>),
+pub enum GlutinContextBuilder {
+    NotCurrent(ContextBuilder<'static, NotCurrent>),
+    PossiblyCurrent(ContextBuilder<'static, PossiblyCurrent>),
 }
 
-impl<'a> GlutinContextBuilder<'a> {
+impl GlutinContextBuilder {
     pub fn build_windowed<TE>(
         self,
         wb: WindowBuilder,
@@ -28,22 +29,30 @@ impl<'a> GlutinContextBuilder<'a> {
         .map(|context| GlutinWindowedContext::NotCurrent(context))
     }
 
-    pub fn with_shared_lists_headless(self, context: &'a GlutinHeadlessContext) -> Self {
+    pub fn with_shared_lists_headless(self, context: &GlutinHeadlessContext) -> Self {
         match self {
             GlutinContextBuilder::NotCurrent(builder) => match context {
                 GlutinHeadlessContext::NotCurrent(context) => {
-                    GlutinContextBuilder::NotCurrent(builder.with_shared_lists(context))
+                    GlutinContextBuilder::NotCurrent(unsafe {
+                        transmute(builder.with_shared_lists(context))
+                    })
                 }
                 GlutinHeadlessContext::PossiblyCurrent(context) => {
-                    GlutinContextBuilder::PossiblyCurrent(builder.with_shared_lists(context))
+                    GlutinContextBuilder::PossiblyCurrent(unsafe {
+                        transmute(builder.with_shared_lists(context))
+                    })
                 }
             },
             GlutinContextBuilder::PossiblyCurrent(builder) => match context {
                 GlutinHeadlessContext::NotCurrent(context) => {
-                    GlutinContextBuilder::NotCurrent(builder.with_shared_lists(context))
+                    GlutinContextBuilder::NotCurrent(unsafe {
+                        transmute(builder.with_shared_lists(context))
+                    })
                 }
                 GlutinHeadlessContext::PossiblyCurrent(context) => {
-                    GlutinContextBuilder::PossiblyCurrent(builder.with_shared_lists(context))
+                    GlutinContextBuilder::PossiblyCurrent(unsafe {
+                        transmute(builder.with_shared_lists(context))
+                    })
                 }
             },
         }
@@ -64,191 +73,172 @@ macro_rules! with_builder {
 }
 
 #[no_mangle]
-pub fn glutin_context_builder_default<'a>() -> *mut ValueBox<GlutinContextBuilder<'a>> {
+pub fn glutin_context_builder_default() -> *mut ValueBox<GlutinContextBuilder> {
     ValueBox::new(GlutinContextBuilder::NotCurrent(ContextBuilder::new())).into_raw()
 }
 
 #[no_mangle]
-pub fn glutin_context_builder_with_shared_windowed_context(
-    mut _ptr_context_builder: *mut ValueBox<ContextBuilder<NotCurrent>>,
-    mut _ptr_another_context: *mut ValueBox<WindowedContext<PossiblyCurrent>>,
-) {
-}
-
-#[no_mangle]
 pub fn glutin_context_builder_with_shared_headless_context(
-    mut _ptr_context_builder: *mut ValueBox<GlutinContextBuilder>,
-    mut _ptr_another_context: *mut ValueBox<GlutinHeadlessContext>,
+    context_builder: *mut ValueBox<GlutinContextBuilder>,
+    another_context: *mut ValueBox<GlutinHeadlessContext>,
 ) {
-    _ptr_context_builder.with_box(
-        || (),
-        |context_box, _| {
-            _ptr_another_context.with_box(
-                || (),
-                |another_box, _| {
-                    let new_builder = match context_box.take_value() {
-                        None => None,
-                        Some(context_builder) => match another_box.as_ref_mut() {
-                            None => None,
-                            Some(another_context) => {
-                                Some(context_builder.with_shared_lists_headless(another_context))
-                            }
-                        },
-                    };
-
-                    match new_builder {
-                        None => {}
-                        Some(builder) => {
-                            let new_builder_cleared: GlutinContextBuilder =
-                                unsafe { std::mem::transmute(builder) };
-                            context_box.set_value(new_builder_cleared)
-                        }
-                    }
-                },
-            )
-        },
-    );
+    another_context
+        .with_ref(|another_context| {
+            context_builder.replace_value(|context_builder| {
+                context_builder.with_shared_lists_headless(another_context)
+            })
+        })
+        .log();
 }
 
 #[no_mangle]
 pub fn glutin_context_builder_with_gl_then_gles(
-    mut _ptr_context_builder: *mut ValueBox<GlutinContextBuilder>,
+    context_builder: *mut ValueBox<GlutinContextBuilder>,
     gl_major: u8,
     gl_minor: u8,
     gles_major: u8,
     gles_minor: u8,
 ) {
-    _ptr_context_builder.with_not_null_value_mutate(|builder| {
-        with_builder!(
-            builder,
-            builder.with_gl(GlRequest::GlThenGles {
-                opengl_version: (gl_major, gl_minor),
-                opengles_version: (gles_major, gles_minor),
-            })
-        )
-    });
+    context_builder
+        .replace_value(|builder| {
+            with_builder!(
+                builder,
+                builder.with_gl(GlRequest::GlThenGles {
+                    opengl_version: (gl_major, gl_minor),
+                    opengles_version: (gles_major, gles_minor),
+                })
+            )
+        })
+        .log()
 }
 
 #[no_mangle]
-pub fn glutin_context_builder_with_gl_latest(
-    mut _ptr_context_builder: *mut ValueBox<GlutinContextBuilder>,
-) {
-    _ptr_context_builder.with_not_null_value_mutate(|builder| {
-        with_builder!(builder, builder.with_gl(GlRequest::Latest))
-    })
+pub fn glutin_context_builder_with_gl_latest(context_builder: *mut ValueBox<GlutinContextBuilder>) {
+    context_builder
+        .replace_value(|builder| with_builder!(builder, builder.with_gl(GlRequest::Latest)))
+        .log();
 }
 
 #[no_mangle]
 pub fn glutin_context_builder_with_gl_profile_core(
-    mut _ptr_context_builder: *mut ValueBox<GlutinContextBuilder>,
+    context_builder: *mut ValueBox<GlutinContextBuilder>,
 ) {
-    _ptr_context_builder.with_not_null_value_mutate(|builder| {
-        with_builder!(builder, builder.with_gl_profile(GlProfile::Core))
-    })
+    context_builder
+        .replace_value(|builder| with_builder!(builder, builder.with_gl_profile(GlProfile::Core)))
+        .log();
 }
 
 #[no_mangle]
 pub fn glutin_context_builder_with_gl_profile_compatibility(
-    mut _ptr_context_builder: *mut ValueBox<GlutinContextBuilder>,
+    context_builder: *mut ValueBox<GlutinContextBuilder>,
 ) {
-    _ptr_context_builder.with_not_null_value_mutate(|builder| {
-        with_builder!(builder, builder.with_gl_profile(GlProfile::Compatibility))
-    })
+    context_builder
+        .replace_value(|builder| {
+            with_builder!(builder, builder.with_gl_profile(GlProfile::Compatibility))
+        })
+        .log();
 }
 
 #[no_mangle]
 pub fn glutin_context_builder_with_multisampling(
-    mut _ptr_context_builder: *mut ValueBox<GlutinContextBuilder>,
+    context_builder: *mut ValueBox<GlutinContextBuilder>,
     samples: u16,
 ) {
-    _ptr_context_builder.with_not_null_value_mutate(|builder| {
-        with_builder!(builder, builder.with_multisampling(samples))
-    })
+    context_builder
+        .replace_value(|builder| with_builder!(builder, builder.with_multisampling(samples)))
+        .log();
 }
 
 #[no_mangle]
 pub fn glutin_context_builder_with_depth_buffer(
-    mut _ptr_context_builder: *mut ValueBox<GlutinContextBuilder>,
+    context_builder: *mut ValueBox<GlutinContextBuilder>,
     bits: u8,
 ) {
-    _ptr_context_builder.with_not_null_value_mutate(|builder| {
-        with_builder!(builder, builder.with_depth_buffer(bits))
-    })
+    context_builder
+        .replace_value(|builder| with_builder!(builder, builder.with_depth_buffer(bits)))
+        .log();
 }
 
 #[no_mangle]
 pub fn glutin_context_builder_with_stencil_buffer(
-    mut _ptr_context_builder: *mut ValueBox<GlutinContextBuilder>,
+    context_builder: *mut ValueBox<GlutinContextBuilder>,
     bits: u8,
 ) {
-    _ptr_context_builder.with_not_null_value_mutate(|builder| {
-        with_builder!(builder, builder.with_stencil_buffer(bits))
-    })
+    context_builder
+        .replace_value(|builder| with_builder!(builder, builder.with_stencil_buffer(bits)))
+        .log();
 }
 
 #[no_mangle]
 pub fn glutin_context_builder_with_pixel_format(
-    mut _ptr_context_builder: *mut ValueBox<GlutinContextBuilder>,
+    context_builder: *mut ValueBox<GlutinContextBuilder>,
     color_bits: u8,
     alpha_bits: u8,
 ) {
-    _ptr_context_builder.with_not_null_value_mutate(|builder| {
-        with_builder!(builder, builder.with_pixel_format(color_bits, alpha_bits))
-    })
+    context_builder
+        .replace_value(|builder| {
+            with_builder!(builder, builder.with_pixel_format(color_bits, alpha_bits))
+        })
+        .log();
 }
 
 #[no_mangle]
 pub fn glutin_context_builder_with_vsync(
-    mut _ptr_context_builder: *mut ValueBox<GlutinContextBuilder>,
+    context_builder: *mut ValueBox<GlutinContextBuilder>,
     vsync: bool,
 ) {
-    _ptr_context_builder
-        .with_not_null_value_mutate(|builder| with_builder!(builder, builder.with_vsync(vsync)))
+    context_builder
+        .replace_value(|builder| with_builder!(builder, builder.with_vsync(vsync)))
+        .log();
 }
 
 #[no_mangle]
 pub fn glutin_context_builder_with_srgb(
-    mut _ptr_context_builder: *mut ValueBox<GlutinContextBuilder>,
+    context_builder: *mut ValueBox<GlutinContextBuilder>,
     srgb_enabled: bool,
 ) {
-    _ptr_context_builder.with_not_null_value_mutate(|builder| {
-        with_builder!(builder, builder.with_srgb(srgb_enabled))
-    })
+    context_builder
+        .replace_value(|builder| with_builder!(builder, builder.with_srgb(srgb_enabled)))
+        .log();
 }
 
 #[no_mangle]
 pub fn glutin_context_builder_with_double_buffer(
-    mut _ptr_context_builder: *mut ValueBox<GlutinContextBuilder>,
+    context_builder: *mut ValueBox<GlutinContextBuilder>,
     double_buffer_enabled: bool,
 ) {
-    _ptr_context_builder.with_not_null_value_mutate(|builder| {
-        with_builder!(
-            builder,
-            builder.with_double_buffer(Some(double_buffer_enabled))
-        )
-    })
+    context_builder
+        .replace_value(|builder| {
+            with_builder!(
+                builder,
+                builder.with_double_buffer(Some(double_buffer_enabled))
+            )
+        })
+        .log();
 }
 
 #[no_mangle]
 pub fn glutin_context_builder_with_hardware_acceleration(
-    mut _ptr_context_builder: *mut ValueBox<GlutinContextBuilder>,
+    context_builder: *mut ValueBox<GlutinContextBuilder>,
     hardware_acceleration_enabled: bool,
 ) {
-    _ptr_context_builder.with_not_null_value_mutate(|builder| {
-        with_builder!(
-            builder,
-            builder.with_hardware_acceleration(Some(hardware_acceleration_enabled))
-        )
-    })
+    context_builder
+        .replace_value(|builder| {
+            with_builder!(
+                builder,
+                builder.with_hardware_acceleration(Some(hardware_acceleration_enabled))
+            )
+        })
+        .log();
 }
 
 #[no_mangle]
 pub fn glutin_context_builder_with_any_hardware_acceleration(
-    mut _ptr_context_builder: *mut ValueBox<GlutinContextBuilder>,
+    context_builder: *mut ValueBox<GlutinContextBuilder>,
 ) {
-    _ptr_context_builder.with_not_null_value_mutate(|builder| {
-        with_builder!(builder, builder.with_hardware_acceleration(None))
-    })
+    context_builder
+        .replace_value(|builder| with_builder!(builder, builder.with_hardware_acceleration(None)))
+        .log();
 }
 
 #[no_mangle]
@@ -270,6 +260,6 @@ pub fn glutin_context_builder_print_it(_ptr: *mut ValueBox<GlutinContextBuilder>
 }
 
 #[no_mangle]
-pub fn glutin_destroy_context_builder(_ptr: &mut *mut ValueBox<GlutinContextBuilder>) {
-    _ptr.drop();
+pub fn glutin_destroy_context_builder(_ptr: *mut ValueBox<GlutinContextBuilder>) {
+    _ptr.release();
 }

@@ -1,6 +1,3 @@
-use boxer::string::BoxerString;
-use boxer::{ValueBox, ValueBoxPointer, ValueBoxPointerReference};
-
 use crate::context_builder::GlutinContextBuilder;
 use crate::event_loop::GlutinEventLoop;
 use crate::ContextApi;
@@ -10,6 +7,8 @@ use glutin::{
     PossiblyCurrent,
 };
 use std::ffi::c_void;
+use string_box::StringBox;
+use value_box::{BoxerError, ReturnBoxerResult, ValueBox, ValueBoxPointer};
 
 #[derive(Debug)]
 pub enum GlutinHeadlessContext {
@@ -169,36 +168,25 @@ pub fn glutin_create_headless_context(
     _ptr_events_loop: *mut ValueBox<GlutinEventLoop>,
     mut _ptr_context_builder: *mut ValueBox<GlutinContextBuilder>,
 ) -> *mut ValueBox<GlutinHeadlessContext> {
-    _ptr_events_loop.with_not_null_return(std::ptr::null_mut(), |event_loop| {
-        _ptr_context_builder.with_not_null_value_consumed_return(
-            std::ptr::null_mut(),
-            |context_builder| {
-                let context_builder_info = format!("{:?}", &context_builder);
-
-                let context = match context_builder {
-                    GlutinContextBuilder::NotCurrent(builder) => {
-                        build_context(event_loop, builder.clone())
-                    }
-                    GlutinContextBuilder::PossiblyCurrent(builder) => {
-                        build_context(event_loop, builder.clone())
-                    }
-                };
-                match context {
-                    Ok(context) => {
-                        info!("Created headless context with {}", context_builder_info);
-                        ValueBox::new(GlutinHeadlessContext::NotCurrent(context)).into_raw()
-                    }
-                    Err(err) => {
-                        warn!(
-                            "Could not create headless context with {} due to {:?}",
-                            context_builder_info, err
-                        );
-                        std::ptr::null_mut()
-                    }
-                }
-            },
-        )
-    })
+    _ptr_events_loop
+        .with_mut(|event_loop| {
+            _ptr_context_builder
+                .take_value()
+                .and_then(|context_builder| {
+                    let context = match context_builder {
+                        GlutinContextBuilder::NotCurrent(builder) => {
+                            build_context(event_loop, builder.clone())
+                        }
+                        GlutinContextBuilder::PossiblyCurrent(builder) => {
+                            build_context(event_loop, builder.clone())
+                        }
+                    };
+                    context
+                        .map(|context| GlutinHeadlessContext::NotCurrent(context))
+                        .map_err(|error| BoxerError::AnyError(error.into()))
+                })
+        })
+        .into_raw()
 }
 
 // I *do not* consume the context builder
@@ -209,15 +197,15 @@ pub fn glutin_try_headless_context(
 ) -> bool {
     debug!("[glutin_try_headless_context] Trying if a context works");
 
-    let mut context = glutin_create_headless_context(_ptr_events_loop, _ptr_context_builder);
-    let is_valid = context.is_valid();
-    (&mut context).drop();
+    let context = glutin_create_headless_context(_ptr_events_loop, _ptr_context_builder);
+    let is_valid = context.has_value();
+    context.release();
     is_valid
 }
 
 #[no_mangle]
 pub fn glutin_context_make_current(mut _ptr: *mut ValueBox<GlutinHeadlessContext>) {
-    _ptr.with_not_null_value_mutate(|context| context.make_current());
+    _ptr.replace_value(|context| context.make_current()).log();
 }
 
 #[no_mangle]
@@ -233,7 +221,7 @@ pub fn glutin_context_get_api(_ptr_context: *mut ValueBox<GlutinHeadlessContext>
 #[no_mangle]
 pub fn glutin_context_get_proc_address(
     _ptr_context: *mut ValueBox<GlutinHeadlessContext>,
-    _ptr_symbol: *mut ValueBox<BoxerString>,
+    _ptr_symbol: *mut ValueBox<StringBox>,
 ) -> *const c_void {
     _ptr_context.with_not_null_return(std::ptr::null(), |context| {
         _ptr_symbol.with_not_null_return(std::ptr::null(), |symbol| {
@@ -243,6 +231,6 @@ pub fn glutin_context_get_proc_address(
 }
 
 #[no_mangle]
-pub fn glutin_destroy_context(_ptr: &mut *mut ValueBox<GlutinHeadlessContext>) {
-    _ptr.drop();
+pub fn glutin_destroy_context(_ptr: *mut ValueBox<GlutinHeadlessContext>) {
+    _ptr.release();
 }

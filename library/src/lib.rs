@@ -21,14 +21,14 @@ mod ext;
 #[path = "platform/others.rs"]
 mod ext;
 
-use boxer::number::BoxerUint128;
-use boxer::string::BoxerString;
-
+use geometry_box::U128Box;
 use glutin::window::WindowId;
-
-use boxer::{ValueBox, ValueBoxPointer};
 use glutin::Api;
 use std::mem::transmute_copy;
+use string_box::StringBox;
+use value_box::{ValueBox, ValueBoxPointer};
+
+use value_box_ffi::*;
 
 ///////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////// L I B R A R Y /////////////////////////////////////
@@ -69,16 +69,16 @@ pub fn glutin_init_logger() {
 }
 
 #[no_mangle]
-pub fn glutin_println(_ptr_message: *mut ValueBox<BoxerString>) {
+pub fn glutin_println(_ptr_message: *mut ValueBox<StringBox>) {
     _ptr_message.with_not_null(|message| println!("{}", message.to_string()));
 }
 
 #[no_mangle]
-pub fn glutin_print(_ptr_message: *mut ValueBox<BoxerString>) {
+pub fn glutin_print(_ptr_message: *mut ValueBox<StringBox>) {
     _ptr_message.with_not_null(|message| print!("{}", message.to_string()));
 }
 
-pub fn glutin_convert_window_id(window_id: WindowId) -> BoxerUint128 {
+pub fn glutin_convert_window_id(window_id: WindowId) -> U128Box {
     let size = std::mem::size_of::<WindowId>();
 
     let id_128: u128 = match size {

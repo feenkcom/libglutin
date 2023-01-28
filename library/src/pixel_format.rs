@@ -1,5 +1,5 @@
-use boxer::{ValueBox, ValueBoxPointer, ValueBoxPointerReference};
 use glutin::PixelFormat;
+use value_box::{ValueBox, ValueBoxPointer};
 
 #[no_mangle]
 pub fn glutin_pixel_format_default() -> *mut ValueBox<PixelFormat> {
@@ -68,6 +68,6 @@ pub fn glutin_pixel_format_is_srgb(_ptr: *mut ValueBox<PixelFormat>) -> bool {
 }
 
 #[no_mangle]
-pub fn glutin_pixel_format_drop(_ptr: &mut *mut ValueBox<PixelFormat>) {
-    _ptr.drop();
+pub fn glutin_pixel_format_drop(_ptr: *mut ValueBox<PixelFormat>) {
+    _ptr.release();
 }

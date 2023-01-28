@@ -1,19 +1,19 @@
-use crate::context_builder::GlutinContextBuilder;
-use crate::enums::GlutinCursorIcon;
-use crate::event_loop::GlutinEventLoop;
-use crate::pixel_format::glutin_pixel_format_default;
-use crate::{glutin_convert_window_id, ContextApi};
-use boxer::number::BoxerUint128;
-use boxer::point::BoxerPointI32;
-use boxer::size::BoxerSizeU32;
-use boxer::string::BoxerString;
-use boxer::{ValueBox, ValueBoxPointer, ValueBoxPointerReference};
+use std::os::raw::c_void;
+
+use geometry_box::{PointBox, SizeBox, U128Box};
 use glutin::dpi::{PhysicalPosition, PhysicalSize};
 use glutin::window::Window;
 use glutin::window::WindowBuilder;
 use glutin::{Api, ContextError, NotCurrent, PixelFormat, PossiblyCurrent, WindowedContext};
 use raw_window_handle::{HasRawWindowHandle, RawWindowHandle};
-use std::os::raw::c_void;
+use string_box::StringBox;
+use value_box::{BoxerError, ReturnBoxerResult, ValueBox, ValueBoxPointer};
+
+use crate::context_builder::GlutinContextBuilder;
+use crate::enums::GlutinCursorIcon;
+use crate::event_loop::GlutinEventLoop;
+use crate::pixel_format::glutin_pixel_format_default;
+use crate::{glutin_convert_window_id, ContextApi};
 
 #[derive(Debug)]
 pub enum GlutinWindowedContext {
@@ -116,28 +116,22 @@ pub fn glutin_create_windowed_context(
         return std::ptr::null_mut();
     }
 
-    _ptr_events_loop.with_not_null_return(std::ptr::null_mut(), |event_loop| {
-        _ptr_context_builder.with_not_null_value_consumed_return(
-            std::ptr::null_mut(),
-            |context_builder| {
-                _ptr_window_builder.with_not_null_value_consumed_return(
-                    std::ptr::null_mut(),
-                    |window_builder| {
+    _ptr_events_loop
+        .with_mut(|event_loop| {
+            _ptr_context_builder
+                .take_value()
+                .and_then(|context_builder| {
+                    _ptr_window_builder.take_value().and_then(|window_builder| {
                         debug!("Windowed context builder: {:?}", &context_builder);
                         debug!("Window builder: {:?}", &window_builder);
 
-                        match context_builder.build_windowed(window_builder, event_loop) {
-                            Ok(windowed_context) => ValueBox::new(windowed_context).into_raw(),
-                            Err(err) => {
-                                warn!("Could not create windowed context {:?}", err);
-                                std::ptr::null_mut()
-                            }
-                        }
-                    },
-                )
-            },
-        )
-    })
+                        context_builder
+                            .build_windowed(window_builder, event_loop)
+                            .map_err(|error| BoxerError::AnyError(error.into()))
+                    })
+                })
+        })
+        .into_raw()
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////
@@ -149,25 +143,31 @@ pub fn glutin_windowed_context_make_current(mut _ptr_window: *mut ValueBox<Gluti
         return;
     }
 
-    _ptr_window.with_not_null_value_mutate(|window| {
-        let context: GlutinWindowedContext;
+    _ptr_window
+        .replace_value(|window| {
+            let context: GlutinWindowedContext;
 
-        match window.make_current() {
-            Ok(windowed_context) => context = windowed_context,
-            Err((windowed_context, err)) => {
-                context = windowed_context;
-                match err {
-                    ContextError::OsError(string) => error!("OS Error in make_current: {}", string),
-                    ContextError::IoError(error) => error!("IO Error in make_current: {:?}", error),
-                    ContextError::ContextLost => error!("ContextLost Error in make_current"),
-                    ContextError::FunctionUnavailable => {
-                        error!("FunctionUnavailable Error in make_current")
+            match window.make_current() {
+                Ok(windowed_context) => context = windowed_context,
+                Err((windowed_context, err)) => {
+                    context = windowed_context;
+                    match err {
+                        ContextError::OsError(string) => {
+                            error!("OS Error in make_current: {}", string)
+                        }
+                        ContextError::IoError(error) => {
+                            error!("IO Error in make_current: {:?}", error)
+                        }
+                        ContextError::ContextLost => error!("ContextLost Error in make_current"),
+                        ContextError::FunctionUnavailable => {
+                            error!("FunctionUnavailable Error in make_current")
+                        }
                     }
                 }
             }
-        }
-        context
-    });
+            context
+        })
+        .log();
 }
 
 #[no_mangle]
@@ -188,7 +188,7 @@ pub fn glutin_windowed_context_swap_buffers(_ptr_window: *mut ValueBox<GlutinWin
 #[no_mangle]
 pub fn glutin_windowed_context_get_proc_address(
     _ptr_window: *mut ValueBox<GlutinWindowedContext>,
-    _ptr_symbol: *mut ValueBox<BoxerString>,
+    _ptr_symbol: *mut ValueBox<StringBox>,
 ) -> *const c_void {
     _ptr_window.with_not_null_return(std::ptr::null(), |window| {
         _ptr_symbol.with_not_null_return(std::ptr::null(), |symbol| {
@@ -256,7 +256,7 @@ pub fn glutin_windowed_context_get_scale_factor(
 #[no_mangle]
 pub fn glutin_windowed_context_get_inner_size(
     _ptr_window: *mut ValueBox<GlutinWindowedContext>,
-    _ptr_size: *mut ValueBox<BoxerSizeU32>,
+    _ptr_size: *mut ValueBox<SizeBox<u32>>,
 ) {
     _ptr_window.with_not_null(|window| {
         _ptr_size.with_not_null(|size| {
@@ -283,7 +283,7 @@ pub fn glutin_windowed_context_set_inner_size(
 #[no_mangle]
 pub fn glutin_windowed_context_get_position(
     _ptr_window: *mut ValueBox<GlutinWindowedContext>,
-    _ptr_position: *mut ValueBox<BoxerPointI32>,
+    _ptr_position: *mut ValueBox<PointBox<i32>>,
 ) {
     _ptr_window.with_not_null(|window| {
         _ptr_position.with_not_null(|position| match window.window().outer_position() {
@@ -318,11 +318,11 @@ pub fn glutin_windowed_context_set_position(
 #[no_mangle]
 pub fn glutin_windowed_context_get_id(
     _ptr_window: *mut ValueBox<GlutinWindowedContext>,
-    _ptr_number: *mut ValueBox<BoxerUint128>,
+    _ptr_number: *mut ValueBox<U128Box>,
 ) {
     _ptr_window.with_not_null(|window| {
         _ptr_number.with_not_null(|number| {
-            let id: BoxerUint128 = glutin_convert_window_id(window.window().id());
+            let id: U128Box = glutin_convert_window_id(window.window().id());
             number.low = id.low;
             number.high = id.high
         });
@@ -332,7 +332,7 @@ pub fn glutin_windowed_context_get_id(
 #[no_mangle]
 pub fn glutin_windowed_context_set_title(
     _ptr_window: *mut ValueBox<GlutinWindowedContext>,
-    _ptr_boxer_string: *mut ValueBox<BoxerString>,
+    _ptr_boxer_string: *mut ValueBox<StringBox>,
 ) {
     _ptr_window.with_not_null(|window| {
         _ptr_boxer_string
@@ -359,6 +359,6 @@ pub fn glutin_windowed_context_set_maximized(
 }
 
 #[no_mangle]
-pub fn glutin_destroy_windowed_context(_ptr: &mut *mut ValueBox<GlutinWindowedContext>) {
-    _ptr.drop();
+pub fn glutin_destroy_windowed_context(_ptr: *mut ValueBox<GlutinWindowedContext>) {
+    _ptr.release();
 }
