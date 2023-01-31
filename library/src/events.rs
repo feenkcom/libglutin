@@ -4,7 +4,6 @@ use std::mem::transmute;
 use geometry_box::U128Box;
 use glutin::dpi::{PhysicalPosition, PhysicalSize};
 use glutin::event::*;
-use value_box::{ValueBox, ValueBoxPointer};
 
 use crate::event_loop::GlutinCustomEvent;
 use crate::glutin_convert_window_id;
