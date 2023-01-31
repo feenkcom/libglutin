@@ -1,9 +1,16 @@
 use shared_library_builder::{GitLocation, LibraryLocation, RustLibrary};
 
-pub fn libglutin(version: impl Into<String>) -> RustLibrary {
+pub fn libglutin(version: Option<impl Into<String>>) -> RustLibrary {
     RustLibrary::new(
         "Glutin",
-        LibraryLocation::Git(GitLocation::github("feenkcom", "libglutin").tag(version)),
+        LibraryLocation::Git(
+            GitLocation::github("feenkcom", "libglutin").tag_or_latest(version),
+        ),
     )
-    .package("libglutin")
+        .package("libglutin")
+}
+
+pub fn latest_libglutin() -> RustLibrary {
+    let version: Option<String> = None;
+    libglutin(version)
 }
