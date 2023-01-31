@@ -143,26 +143,6 @@ pipeline {
                         stash includes: "${LIBRARY_NAME}-${TARGET}.${EXTENSION}", name: "${TARGET}"
                     }
                 }
-
-                stage ('Windows arm64') {
-                    agent {
-                        label "${WINDOWS_ARM64_TARGET}-${WINDOWS_ARM64_SERVER_NAME}"
-                    }
-
-                    environment {
-                        TARGET = "${WINDOWS_ARM64_TARGET}"
-                        EXTENSION = "dll"
-                        CARGO_HOME = "C:\\.cargo"
-                        CARGO_PATH = "${CARGO_HOME}\\bin"
-                        PATH = "${CARGO_PATH};$PATH"
-                    }
-
-                    steps {
-                        powershell "cargo run --package ${REPOSITORY_NAME}-builder --bin builder --release -- --target ${TARGET}"
-                        powershell "Move-Item -Force -Path target/${TARGET}/release/${LIBRARY_NAME}.${EXTENSION} -Destination ${LIBRARY_NAME}-${TARGET}.${EXTENSION}"
-                        stash includes: "${LIBRARY_NAME}-${TARGET}.${EXTENSION}", name: "${TARGET}"
-                    }
-                }
             }
         }
         stage ('Deployment') {
@@ -183,7 +163,6 @@ pipeline {
                 unstash "${MACOS_INTEL_TARGET}"
                 unstash "${MACOS_M1_TARGET}"
                 unstash "${WINDOWS_AMD64_TARGET}"
-                unstash "${WINDOWS_ARM64_TARGET}"
 
                 sh "rm -rf feenk-releaser"
                 sh "curl -o feenk-releaser -LsS https://github.com/feenkcom/releaser-rs/releases/download/${FEENK_RELEASER_VERSION}/feenk-releaser-${TARGET}"
@@ -202,8 +181,7 @@ pipeline {
                         lib${LIBRARY_NAME}-${LINUX_ARM64_TARGET}.so \
                         lib${LIBRARY_NAME}-${MACOS_INTEL_TARGET}.dylib \
                         lib${LIBRARY_NAME}-${MACOS_M1_TARGET}.dylib \
-                        ${LIBRARY_NAME}-${WINDOWS_AMD64_TARGET}.dll \
-                        ${LIBRARY_NAME}-${WINDOWS_ARM64_TARGET}.dll """
+                        ${LIBRARY_NAME}-${WINDOWS_AMD64_TARGET}.dll """
             }
         }
     }
