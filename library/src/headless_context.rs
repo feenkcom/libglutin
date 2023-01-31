@@ -183,7 +183,7 @@ pub fn glutin_create_headless_context(
                     };
                     context
                         .map(|context| GlutinHeadlessContext::NotCurrent(context))
-                        .map_err(|error| BoxerError::AnyError(error.to_string().into()))
+                        .map_err(|error| BoxerError::AnyError(format!("{:?}", error).into()))
                 })
         })
         .into_raw()
