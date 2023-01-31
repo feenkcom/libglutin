@@ -13,7 +13,7 @@ env_logger = "0.10"
 value-box = "2.2"
 geometry-box = "1.0"
 string-box = "1.1"
-value-box-ffi = { version = "1.0", features = [ "geometry-box", "string-box"] }
+value-box-ffi = { version = "1.1", features = [ "geometry-box", "string-box"] }
 
 [lib]
 name = "Glutin"

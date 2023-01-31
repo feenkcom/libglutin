@@ -11,7 +11,6 @@ exclude = [ "target" ]
 
 [patch.crates-io]
 winit = { git = "https://github.com/syrel/winit", rev = "3e8db78c10423528a8cf19d674c4494bfe34f74d" }
-raw-window-handle = { git = 'https://github.com/rust-windowing/raw-window-handle' }
 
 [profile.dev]
 opt-level = 0
